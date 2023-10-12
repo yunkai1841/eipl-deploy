@@ -1,0 +1,11 @@
+{
+    "airec": {
+        "grasp_bottle": [
+            "https://dl.dropboxusercontent.com/s/5gz1j4uzpzhnttt/grasp_bottle.tar",
+            "https://dl.dropboxusercontent.com/s/o29j0kiqwtqlk9v/pretrained.tar"
+        ]
+    },
+    "om": {
+        "grasp_cube": null
+    }
+}
