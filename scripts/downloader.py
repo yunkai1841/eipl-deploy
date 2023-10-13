@@ -7,18 +7,22 @@
 
 import os
 import tarfile
+import json
 import numpy as np
 import urllib.request
 from urllib.error import URLError
 from eipl.utils import normalization
-from .data_dict import data_dict
 
+# root dir is $PWD/download
+DOWNLOADS_DIR = os.path.abspath("./downloads")
+with open("configs/download_url.json") as f:
+    data_dict = json.load(f)
 
 class Downloader:
     def __init__(self, robot, task):
         self.robot = robot
         self.task = task
-        self.root_dir = os.path.join(os.path.expanduser("~"), ".eipl/", robot)
+        self.root_dir = os.path.join(DOWNLOADS_DIR, robot)
 
     def _download_tar_files(self, mirror_url):
         for _url in mirror_url:
@@ -40,7 +44,7 @@ class Downloader:
         """Download the data if it doesn't exist already."""
 
         filename = os.path.splitext(os.path.basename(mirror_url))[0]
-        root_dir = os.path.join(os.path.expanduser("~"), ".eipl/", self.robot)
+        root_dir = os.path.join(DOWNLOADS_DIR, self.robot)
         tar_file = os.path.join(root_dir, filename + ".tar")
         os.makedirs(self.root_dir, exist_ok=True)
 
@@ -49,6 +53,8 @@ class Downloader:
             if not self._check_exists(tar_file):
                 print(f"Downloading {mirror_url}")
                 urllib.request.urlretrieve(mirror_url, tar_file)
+            else:
+                print(f"Skip {mirror_url}")
 
             with tarfile.open(tar_file, "r:tar") as tar:
                 tar.extractall(path=self.root_dir)
@@ -78,7 +84,7 @@ class SampleDownloader(Downloader):
         self.robot = robot
         self.task = task
         self.img_format = img_format
-        self.root_dir = os.path.join(os.path.expanduser("~"), ".eipl/", robot)
+        self.root_dir = os.path.join(DOWNLOADS_DIR, robot)
         mirror_urls = data_dict[robot][task]
 
         # download data
@@ -166,7 +172,19 @@ class WeightDownloader(Downloader):
         super().__init__(robot=robot, task=task)
         self.robot = robot
         self.task = task
-        self.root_dir = os.path.join(os.path.expanduser("~"), ".eipl/", robot)
+        self.root_dir = os.path.join(DOWNLOADS_DIR, robot)
 
         # download data
         self._download_tar_files(data_dict[robot][task])
+
+
+if __name__ == "__main__":
+    # download all data
+    for robot in data_dict.keys():
+        for task in data_dict[robot].keys():
+            if not data_dict[robot][task]:
+                print(f"Skip {robot}/{task} data")
+                continue
+            else:
+                print(f"Download {robot}/{task} data")
+                Downloader(robot, task)
