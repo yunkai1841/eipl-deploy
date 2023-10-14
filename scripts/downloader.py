@@ -11,7 +11,9 @@ import json
 import numpy as np
 import urllib.request
 from urllib.error import URLError
-from ..models.functions.np_utils import normalize
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from models.functions.np_utils import normalize
 
 # root dir is $PWD/download
 DOWNLOADS_DIR = os.path.abspath("./downloads")
