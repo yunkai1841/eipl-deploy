@@ -11,7 +11,7 @@ import json
 import numpy as np
 import urllib.request
 from urllib.error import URLError
-from eipl.utils import normalization
+from ..models.functions.np_utils import normalize
 
 # root dir is $PWD/download
 DOWNLOADS_DIR = os.path.abspath("./downloads")
@@ -148,8 +148,8 @@ class SampleDownloader(Downloader):
             joints (numpy.array): The joints data, expected to be a 3D array [data_num, seq_num, joint_dim].
         """
         images_raw, joints_raw = self._load_data(data_type)
-        images = normalization(images_raw.astype(np.float32), (0.0, 255.0), (vmin, vmax))
-        joints = normalization(joints_raw.astype(np.float32), self.joint_bounds, (vmin, vmax))
+        images = normalize(images_raw.astype(np.float32), (0.0, 255.0), (vmin, vmax))
+        joints = normalize(joints_raw.astype(np.float32), self.joint_bounds, (vmin, vmax))
 
         return images, joints
 
