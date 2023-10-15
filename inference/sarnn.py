@@ -18,10 +18,17 @@ from models.sarnn import SARNN
 
 
 argparser = argparse.ArgumentParser()
-# argparser.add_argument("--input_param", type=float, default=1.0)
-argparser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
-argparser.add_argument("--loop", type=int, help="number of inference loop")
-argparser.add_argument("--profile", action="store_true")
+# argparser.add_argument(
+#     "--input_param",
+#     type=float,
+#     default=1.0,
+#     help="input mix parameter in range [0.0-1.0]",
+# )
+argparser.add_argument("--device", "-d", choices=["cuda", "cpu"], default="cuda")
+argparser.add_argument("--loop", "-l", type=int, help="number of inference loop")
+argparser.add_argument(
+    "--profile", "-p", action="store_true", help="enable memory profiler"
+)
 args = argparser.parse_args()
 
 if args.device == "cuda" and not torch.cuda.is_available():
@@ -74,7 +81,6 @@ else:
     nloop = len(images)
 
 
-# Inference
 def inference():
     state = None
     for loop_ct in range(nloop):
@@ -85,15 +91,16 @@ def inference():
         # joint_t = normalize(joint_t, joint_bounds, minmax)
         joint_t = (joint_t - joint_bounds[0]) / (joint_bounds[1] - joint_bounds[0])
 
-        # closed loop
+        # mix input by input_param
         # if loop_ct > 0:
         #     img_t = args.input_param * img_t + (1.0 - args.input_param) * y_image
         #     joint_t = args.input_param * joint_t + (1.0 - args.input_param) * y_joint
 
-        # inference
-        start_time = time.time()
-        _, _, _, _, state = model(img_t, joint_t, state)
-        end_time = time.time()
+        # if PyTorch<1.9 use torch.no_grad() instead
+        with torch.inference_mode():
+            start_time = time.time()
+            _, _, _, _, state = model(img_t, joint_t, state)
+            end_time = time.time()
         elapsed = end_time - start_time
         time_list.append(elapsed)
 
@@ -105,6 +112,7 @@ def inference():
             print(
                 f"inference time={elapsed}, avg time={sum(time_list[1:]) / len(time_list[1:])}"
             )
+
 
 if args.profile:
     inference = profile(inference)()
