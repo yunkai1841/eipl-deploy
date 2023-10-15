@@ -1,0 +1,5 @@
+# Tested env: Jetson xavier NX
+# Jetpack 5.1.1
+# R35 (release), REVISION: 3.1, GCID: 32827747, BOARD: t186ref, EABI: aarch64, DATE: Sun Mar 19 15:19:21 UTC 2023
+numpy==1.24.4
+torch @ https://developer.download.nvidia.cn/compute/redist/jp/v511/pytorch/torch-2.0.0+nv23.05-cp38-cp38-linux_aarch64.whl#sha256=39eeb9894ef8c7b84249ab917f212a91703f30255d591b956ab12cc10e836532
