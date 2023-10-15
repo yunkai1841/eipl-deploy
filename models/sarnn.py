@@ -43,8 +43,7 @@ class SARNN(nn.Module):
 
         self.k_dim = k_dim
 
-        if isinstance(activation, type_activation):
-            activation = get_activation_fn(activation)
+        activation = get_activation_fn(activation)
 
         sub_im_size = [im_size[0] - 3 * (kernel_size - 1), im_size[1] - 3 * (kernel_size - 1)]
         self.temperature = temperature
