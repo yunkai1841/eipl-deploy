@@ -1,159 +1,89 @@
-#
-# Copyright (c) 2023 Ogata Laboratory, Waseda University
-#
-# Released under the AGPL license.
-# see https://www.gnu.org/licenses/agpl-3.0.txt
-#
-
+"""
+Inference with pretrained weight
+No write result only inference
+Download pretrained before run this script
+"""
 import os
 import torch
-import argparse
+import time
+import json
 import numpy as np
-import matplotlib.pylab as plt
-import matplotlib.animation as anim
-from eipl.data import SampleDownloader, WeightDownloader
-from eipl.model import SARNN
-from eipl.utils import normalization
-from eipl.utils import restore_args, tensor2numpy, deprocess_img
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from models.sarnn import SARNN
 
 
-# argument parser
-parser = argparse.ArgumentParser()
-parser.add_argument("--filename", type=str, default=None)
-parser.add_argument("--idx", type=str, default="0")
-parser.add_argument("--input_param", type=float, default=1.0)
-parser.add_argument("--pretrained", action="store_false")
-args = parser.parse_args()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# check args
-assert args.filename or args.pretrained, "Please set filename or pretrained"
+weight_file = "./downloads/airec/pretrained/SARNN/model.pth"
+params_file = "./downloads/airec/pretrained/SARNN/args.json"
+data_dir = "./downloads/airec/grasp_bottle"
+test_data_dir = "./downloads/airec/grasp_bottle/test"
+test_data_index = 0
 
-# load pretrained weight
-if args.pretrained:
-    WeightDownloader("airec", "grasp_bottle")
-    args.filename = os.path.join(os.path.expanduser("~"), ".eipl/airec/pretrained/SARNN/model.pth")
 
-# restore parameters
-dir_name = os.path.split(args.filename)[0]
-params = restore_args(os.path.join(dir_name, "args.json"))
-idx = int(args.idx)
+# load parameters
+with open(params_file) as f:
+    params = json.load(f)
 
-# load dataset
-minmax = [params["vmin"], params["vmax"]]
-grasp_data = SampleDownloader("airec", "grasp_bottle", img_format="HWC")
-_images, _joints = grasp_data.load_raw_data("test")
-images = _images[idx]
-joints = _joints[idx]
-joint_bounds = np.load(
-    os.path.join(os.path.expanduser("~"), ".eipl/airec/grasp_bottle/joint_bounds.npy")
-)
-print("images shape:{}, min={}, max={}".format(images.shape, images.min(), images.max()))
-print("joints shape:{}, min={}, max={}".format(joints.shape, joints.min(), joints.max()))
+# load test data
+minmax = (params["vmin"], params["vmax"])
+images = np.load(os.path.join(test_data_dir, "images.npy"))[test_data_index]
+images = torch.from_numpy(np.transpose(images, (0, 3, 1, 2))).to(device)
+joints = np.load(os.path.join(test_data_dir, "joints.npy"))[test_data_index]
+joints = torch.from_numpy(joints).to(device)
+joint_bounds = np.load(os.path.join(data_dir, "joint_bounds.npy"))
+joint_bounds = torch.from_numpy(joint_bounds).to(device)
+print(joint_bounds)
+print("data loaded")
 
-# define model
+# load model
 model = SARNN(
     rec_dim=params["rec_dim"],
     joint_dim=8,
     k_dim=params["k_dim"],
     heatmap_size=params["heatmap_size"],
     temperature=params["temperature"],
-)
+).to(device)
 
 # load weight
-ckpt = torch.load(args.filename, map_location=torch.device("cpu"))
+ckpt = torch.load(weight_file, map_location=device)
 model.load_state_dict(ckpt["model_state_dict"])
 model.eval()
+print("model loaded")
 
 # Inference
 img_size = 128
-image_list, joint_list = [], []
-ect_pts_list, dec_pts_list = [], []
+s1, s2 = None, None
 state = None
-nloop = len(images)
+y_image, y_joint = None, None
+time_list = []
+# nloop = len(images)
+nloop = 50
 for loop_ct in range(nloop):
-    # load data and normalization
-    img_t = images[loop_ct].transpose(2, 0, 1)
-    img_t = torch.Tensor(np.expand_dims(img_t, 0))
-    img_t = normalization(img_t, (0, 255), minmax)
-    joint_t = torch.Tensor(np.expand_dims(joints[loop_ct], 0))
-    joint_t = normalization(joint_t, joint_bounds, minmax)
+    # prepare data
+    img_t = images[loop_ct].unsqueeze(0)
+    img_t = img_t / 255.0
+    joint_t = joints[loop_ct].unsqueeze(0)
+    # joint_t = normalize(joint_t, joint_bounds, minmax)
+    joint_t = (joint_t - joint_bounds[0]) / (joint_bounds[1] - joint_bounds[0])
 
     # closed loop
-    if loop_ct > 0:
-        img_t = args.input_param * img_t + (1.0 - args.input_param) * y_image
-        joint_t = args.input_param * joint_t + (1.0 - args.input_param) * y_joint
+    # if loop_ct > 0:
+    #     img_t = args.input_param * img_t + (1.0 - args.input_param) * y_image
+    #     joint_t = args.input_param * joint_t + (1.0 - args.input_param) * y_joint
 
-    # predict rnn
-    y_image, y_joint, ect_pts, dec_pts, state = model(img_t, joint_t, state)
+    # inference
+    start_time = time.time()
+    y_image, y_joint, _, _, state = model(img_t, joint_t, state)
+    end_time = time.time()
+    elapsed = end_time - start_time
+    time_list.append(elapsed)
 
-    # denormalization
-    pred_image = tensor2numpy(y_image[0])
-    pred_image = deprocess_img(pred_image, params["vmin"], params["vmax"])
-    pred_image = pred_image.transpose(1, 2, 0)
-    pred_joint = tensor2numpy(y_joint[0])
-    pred_joint = normalization(pred_joint, minmax, joint_bounds)
+    print(f"inference time={elapsed}, avg time={sum(time_list) / len(time_list)}")
+    if loop_ct == 0:
+        # remove first load
+        time_list = []
 
-    # send pred_joint to robot
-    # send_command(pred_joint)
-    # pub.publish(pred_joint)
+    print("loop_ct:{}".format(loop_ct))
 
-    # append data
-    image_list.append(pred_image)
-    joint_list.append(pred_joint)
-    ect_pts_list.append(tensor2numpy(ect_pts[0]))
-    dec_pts_list.append(tensor2numpy(dec_pts[0]))
-
-    print("loop_ct:{}, joint:{}".format(loop_ct, pred_joint))
-
-pred_image = np.array(image_list)
-pred_joint = np.array(joint_list)
-
-# split key points
-ect_pts = np.array(ect_pts_list)
-dec_pts = np.array(dec_pts_list)
-ect_pts = ect_pts.reshape(-1, params["k_dim"], 2) * img_size
-dec_pts = dec_pts.reshape(-1, params["k_dim"], 2) * img_size
-enc_pts = np.clip(ect_pts, 0, img_size)
-dec_pts = np.clip(dec_pts, 0, img_size)
-
-
-# plot images
-T = len(images)
-fig, ax = plt.subplots(1, 3, figsize=(12, 5), dpi=60)
-
-
-def anim_update(i):
-    for j in range(3):
-        ax[j].cla()
-
-    # plot camera image
-    ax[0].imshow(images[i, :, :, ::-1])
-    for j in range(params["k_dim"]):
-        ax[0].plot(ect_pts[i, j, 0], ect_pts[i, j, 1], "bo", markersize=6)  # encoder
-        ax[0].plot(
-            dec_pts[i, j, 0], dec_pts[i, j, 1], "rx", markersize=6, markeredgewidth=2
-        )  # decoder
-    ax[0].axis("off")
-    ax[0].set_title("Input image")
-
-    # plot predicted image
-    ax[1].imshow(pred_image[i, :, :, ::-1])
-    ax[1].axis("off")
-    ax[1].set_title("Predicted image")
-
-    # plot joint angle
-    ax[2].set_ylim(-1.0, 2.0)
-    ax[2].set_xlim(0, T)
-    ax[2].plot(joints[1:], linestyle="dashed", c="k")
-    for joint_idx in range(8):
-        ax[2].plot(np.arange(i + 1), pred_joint[: i + 1, joint_idx])
-    ax[2].set_xlabel("Step")
-    ax[2].set_title("Joint angles")
-
-
-ani = anim.FuncAnimation(fig, anim_update, interval=int(np.ceil(T / 10)), frames=T)
-ani.save("./output/SARNN_{}_{}_{}.gif".format(params["tag"], idx, args.input_param))
-
-# If an error occurs in generating the gif animation, change the writer (imagemagick/ffmpeg).
-# ani.save("./output/SARNN_{}_{}_{}.gif".format(params["tag"], idx, args.input_param), writer="imagemagick")
-# ani.save("./output/SARNN_{}_{}_{}.gif".format(params["tag"], idx, args.input_param), writer="ffmpeg")
