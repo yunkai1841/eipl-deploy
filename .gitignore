@@ -1,5 +1,10 @@
 downloads/
 .vscode/
+result/
+temp/
+cache/
+
+*.onnx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
