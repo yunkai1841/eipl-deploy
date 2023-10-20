@@ -26,14 +26,14 @@ mkdir -p temp/best
 
 # fp32
 # CUDA
-trtexec --onnx="$1" --saveEngine="temp/fp32/engine_cuda.plan" \
+trtexec --onnx="$1" --saveEngine="temp/fp32/cuda.trt" \
     --exportTimes="result/fp32/times_cuda.json" \
     --exportOutput="result/fp32/output_cuda.json" \
     --exportProfile="result/fp32/profile_cuda.json" \
     --exportLayerInfo="result/fp32/layerinfo_cuda.json" \
     > result/fp32/dump_cuda.txt
 # DLA
-trtexec --onnx="$1" --saveEngine="temp/fp32/engine_dla.plan" \
+trtexec --onnx="$1" --saveEngine="temp/fp32/dla.trt" \
     --allowGPUFallback --useDLACore=0 \
     --exportTimes="result/fp32/times_dla.json" \
     --exportOutput="result/fp32/output_dla.json" \
@@ -44,14 +44,14 @@ trtexec --onnx="$1" --saveEngine="temp/fp32/engine_dla.plan" \
 for precision in fp16 int8 best
 do
     # CUDA
-    trtexec --onnx="$1" --saveEngine="temp/$precision/engine_cuda.plan" --$precision \
+    trtexec --onnx="$1" --saveEngine="temp/$precision/cuda.trt" --$precision \
     --exportTimes="result/$precision/times_cuda.json" \
     --exportOutput="result/$precision/output_cuda.json" \
     --exportProfile="result/$precision/profile_cuda.json" \
     --exportLayerInfo="result/$precision/layerinfo_cuda.json" \
     > result/$precision/dump_cuda.txt
     # DLA
-    trtexec --onnx="$1" --saveEngine="temp/$precision/engine_dla.plan" --$precision \
+    trtexec --onnx="$1" --saveEngine="temp/$precision/dla.trt" --$precision \
     --allowGPUFallback --useDLACore=0 \
     --exportTimes="result/$precision/times_dla.json" \
     --exportOutput="result/$precision/output_dla.json" \
