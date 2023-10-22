@@ -1,0 +1,33 @@
+{
+    "sarnn": {
+        "name": "SARNN",
+        "base": "./downloads/airec/pretrained/SARNN/",
+        "weight": "model.pth",
+        "args": "args.json"
+    },
+    "cnnrnn": {
+        "name": "CNNRNN",
+        "base": "./downloads/airec/pretrained/CNNRNN/",
+        "weight": "model.pth",
+        "args": "args.json"
+    },
+    "cnnrnnln": {
+        "name": "CNNRNNLN",
+        "base": "./downloads/airec/pretrained/CNNRNNLN/",
+        "weight": "model.pth",
+        "args": "args.json"
+    },
+    "caebn": {
+        "name": "CAEBN",
+        "base": "./downloads/airec/pretrained/CAEBN/",
+        "weight": "model.pth",
+        "args": "args.json",
+        "feat_bounds": "feat_bounds.json"
+    },
+    "rnn": {
+        "name": "RNN",
+        "base": "./downloads/airec/pretrained/RNN/",
+        "weight": "model.pth",
+        "args": "args.json"
+    }
+}
