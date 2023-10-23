@@ -19,8 +19,6 @@ python scripts/downloader.py
 
 ## Supported Models
 - SARNN
-```bash
-python inference/sarnn.py
-```
-
-- Other models are not supported yet
+- CNNRNN
+- CNNRNNLN
+- CAELN (no RNN)

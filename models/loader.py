@@ -4,7 +4,7 @@ import torch
 import models
 
 
-def model_loader(model_name, device):
+def model_loader(model_name, device=torch.device("cpu")):
     with open(
         os.path.join(os.path.dirname(__file__), "../configs/model_config.json")
     ) as f:
@@ -39,8 +39,33 @@ def model_loader(model_name, device):
         ).to(device)
     elif model_name == "caebn":
         model = models.CAEBN(feat_dim=params["feat_dim"])
+    else:
+        raise ValueError(f"Model {model_name} not found in models/__init__.py")
 
 
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
     return model
+
+
+# dummy input generator
+def rand_image():
+    return torch.randn(1, 3, 128, 128)
+def rand_joint():
+    return torch.randn(1, 8)
+def rand_state():
+    return tuple(torch.randn(1, 50) for _ in range(2))
+
+def export_onnx(model_name, file):
+    model = model_loader(model_name)
+    if model_name == "caebn":
+        dummy_input = rand_image()
+    else:
+        dummy_input = (rand_image(), rand_joint(), rand_state())
+    torch.onnx.export(
+        model,
+        dummy_input,
+        file,
+        verbose=True,
+    )
+    print(f"ONNX model exported to {file}")

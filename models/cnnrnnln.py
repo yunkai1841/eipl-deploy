@@ -8,6 +8,7 @@
 import torch
 import torch.nn as nn
 
+from .layers.unflatten import Unflatten
 
 class CNNRNNLN(nn.Module):
     """
@@ -62,7 +63,7 @@ class CNNRNNLN(nn.Module):
             nn.Linear(rec_dim, 8 * 4 * 4),
             nn.LayerNorm([8 * 4 * 4]),
             nn.ReLU(True),
-            nn.Unflatten(1, (8, 4, 4)),
+            Unflatten(1, (8, 4, 4)),
             nn.ConvTranspose2d(8, 12, 3, 2, padding=1, output_padding=1),
             nn.LayerNorm([12, 8, 8]),
             nn.ReLU(True),

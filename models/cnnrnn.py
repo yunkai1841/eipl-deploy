@@ -7,6 +7,7 @@
 
 import torch
 import torch.nn as nn
+from .layers.unflatten import Unflatten
 
 
 class CNNRNN(nn.Module):
@@ -53,7 +54,7 @@ class CNNRNN(nn.Module):
         self.decoder_image = nn.Sequential(
             nn.Linear(rec_dim, 8 * 4 * 4),
             nn.Tanh(),
-            nn.Unflatten(1, (8, 4, 4)),
+            Unflatten(1, (8, 4, 4)),
             nn.ConvTranspose2d(8, 12, 3, 2, padding=1, output_padding=1),
             nn.Tanh(),
             nn.ConvTranspose2d(12, 16, 3, 2, padding=1, output_padding=1),

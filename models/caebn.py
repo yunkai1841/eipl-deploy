@@ -7,6 +7,7 @@
 
 import torch.nn as nn
 
+from .layers.unflatten import Unflatten
 
 class BasicCAEBN(nn.Module):
     """BasicCAEBN"""
@@ -48,7 +49,7 @@ class BasicCAEBN(nn.Module):
             nn.Linear(50, 8 * 4 * 4),
             nn.BatchNorm1d(8 * 4 * 4),
             nn.ReLU(True),
-            nn.Unflatten(1, (8, 4, 4)),
+            Unflatten(1, (8, 4, 4)),
             nn.ConvTranspose2d(8, 12, 3, 2, padding=1, output_padding=1),
             nn.BatchNorm2d(12),
             nn.ReLU(True),
@@ -106,7 +107,7 @@ class CAEBN(nn.Module):
             nn.Linear(1000, 128 * 14 * 14),
             nn.BatchNorm1d(128 * 14 * 14),
             nn.ReLU(True),
-            nn.Unflatten(1, (128, 14, 14)),
+            Unflatten(1, (128, 14, 14)),
             nn.ConvTranspose2d(128, 64, 6, 2, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(True),
