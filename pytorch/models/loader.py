@@ -6,7 +6,12 @@ import models
 
 def model_loader(model_name, device=torch.device("cpu")):
     with open(
-        os.path.join(os.path.dirname(__file__), "../configs/model_config.json")
+        os.path.join(
+            os.path.dirname(__file__),
+            os.path.pardir,
+            os.path.pardir,
+            "configs/model_config.json",
+        )
     ) as f:
         model_config = json.load(f)
     if model_name not in model_config:
@@ -42,7 +47,6 @@ def model_loader(model_name, device=torch.device("cpu")):
     else:
         raise ValueError(f"Model {model_name} not found in models/__init__.py")
 
-
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
     return model
@@ -51,10 +55,15 @@ def model_loader(model_name, device=torch.device("cpu")):
 # dummy input generator
 def rand_image():
     return torch.randn(1, 3, 128, 128)
+
+
 def rand_joint():
     return torch.randn(1, 8)
+
+
 def rand_state():
     return tuple(torch.randn(1, 50) for _ in range(2))
+
 
 def export_onnx(model_name, file):
     model = model_loader(model_name)

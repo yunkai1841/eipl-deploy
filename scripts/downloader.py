@@ -8,14 +8,16 @@
 import os
 import tarfile
 import json
-import numpy as np
 import urllib.request
 from urllib.error import URLError
 
-# root dir is $PWD/download
-DOWNLOADS_DIR = os.path.abspath("./downloads")
-with open("configs/download_url.json") as f:
-    data_dict = json.load(f)
+
+DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), os.path.pardir, "downloads")
+with open(
+    os.path.join(os.path.dirname(__file__), os.path.pardir, "configs/download_url.json")
+) as f:
+    DOWNLOAD_URL = json.load(f)
+
 
 class Downloader:
     def __init__(self, robot, task):
@@ -83,14 +85,14 @@ class WeightDownloader(Downloader):
         self.root_dir = os.path.join(DOWNLOADS_DIR, robot)
 
         # download data
-        self._download_tar_files(data_dict[robot][task])
+        self._download_tar_files(DOWNLOAD_URL[robot][task])
 
 
 if __name__ == "__main__":
     # download all data
-    for robot in data_dict.keys():
-        for task in data_dict[robot].keys():
-            if not data_dict[robot][task]:
+    for robot in DOWNLOAD_URL.keys():
+        for task in DOWNLOAD_URL[robot].keys():
+            if not DOWNLOAD_URL[robot][task]:
                 print(f"Skip {robot}/{task} data")
                 continue
             else:
