@@ -8,12 +8,10 @@ import os
 import torch
 import time
 import json
-import sys
 import numpy as np
 import argparse
 from memory_profiler import profile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from models.caebn import CAEBN
 
 
