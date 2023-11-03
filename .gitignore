@@ -4,7 +4,10 @@ result/
 temp/
 cache/
 
+# Model binary
 *.onnx
+*.trt
+*.engine
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

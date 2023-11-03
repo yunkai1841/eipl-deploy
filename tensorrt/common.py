@@ -180,6 +180,20 @@ class HostDeviceMem:
         cuda_call(cudart.cudaFreeHost(self.host.ctypes.data))
 
 
+def nptype(trt_type):
+    mapping = {
+        trt.DataType.FLOAT: np.float32,
+        trt.DataType.HALF: np.float16,
+        trt.DataType.INT8: np.int8,
+        trt.DataType.INT32: np.int32,
+        trt.DataType.BOOL: np.bool_,
+        trt.DataType.UINT8: np.uint8,
+    }
+    if trt_type in mapping:
+        return mapping[trt_type]
+    raise TypeError("Could not resolve TensorRT datatype to an equivalent numpy datatype.")
+
+
 # Allocates all buffers required for an engine, i.e. host/device inputs/outputs.
 # If engine uses dynamic shapes, specify a profile to find the maximum input & output size.
 def allocate_buffers(engine: trt.ICudaEngine, profile_idx: Optional[int] = None):
@@ -200,7 +214,7 @@ def allocate_buffers(engine: trt.ICudaEngine, profile_idx: Optional[int] = None)
         if engine.has_implicit_batch_dimension:
             size *= engine.max_batch_size
         
-        dtype = np.dtype(trt.nptype(engine.get_tensor_dtype(binding)))
+        dtype = np.dtype(nptype(engine.get_tensor_dtype(binding)))
 
         # Allocate host and device buffers
         bindingMemory = HostDeviceMem(size, dtype)
