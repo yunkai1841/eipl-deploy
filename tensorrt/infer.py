@@ -1,6 +1,7 @@
 import time
 import argparse
 from os import path
+import numpy as np
 
 from common import allocate_buffers, do_inference_v2
 from trt_utils import build_engine, load_engine
@@ -32,8 +33,21 @@ def infer(
     joints = Joints()
     images = Images()
 
-    n_loop = len(images)
+    # warmup
+    warmup_loops = 1000
+    print(f"warmup {warmup_loops} loops")
+    for _ in range(warmup_loops):
+        inputs[0].host = images.random()
+        inputs[1].host = joints.random()
+        inputs[2].host = np.random.random(50).astype(np.float32)
+        inputs[3].host = np.random.random(50).astype(np.float32)
+        do_inference_v2(
+            context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream
+        )
 
+    # inference
+    print("inference")
+    n_loop = len(images)
     for loop_ct in range(n_loop):
         inputs[0].host = images[loop_ct]
         inputs[1].host = joints[loop_ct]

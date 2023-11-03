@@ -10,10 +10,12 @@ class Data:
         dtype: Optional[np.dtype] = None,
         dataset_index: int = 0,
         no_load: bool = False,
+        ascontiguousarray: bool = True,  # Returns a contiguous array in memory (C order).
     ):
         self.data_path = data_path
         self.dtype = dtype
         self.dataset_index = dataset_index
+        self.ascontiguousarray = ascontiguousarray  # required for tensorrt
         if not no_load:
             self.load()
 
@@ -27,7 +29,20 @@ class Data:
         return (data - data.min(axis=0)) / (data.max(axis=0) - data.min(axis=0))
 
     def __getitem__(self, index):
-        return self.data[index]
+        if self.ascontiguousarray:
+            return np.ascontiguousarray(self.normalize(self.data[index]))
+        else:
+            return self.normalize(self.data[index])
+
+    def random(self):
+        """
+        Create random data
+        """
+        rand_data = np.random.random(self.data.shape[1:]).astype(self.dtype)
+        if self.ascontiguousarray:
+            return np.ascontiguousarray(rand_data)
+        else:
+            return rand_data
 
     def __len__(self):
         return len(self.data)
@@ -49,9 +64,6 @@ class Joints(Data):
             self.joint_bounds[1] - self.joint_bounds[0]
         )
 
-    def __getitem__(self, index):
-        return np.ascontiguousarray(self.normalize(self.data[index]))
-
 
 class Images(Data):
     def __init__(
@@ -65,6 +77,3 @@ class Images(Data):
 
     def normalize(self, image):
         return image / 255.0
-
-    def __getitem__(self, index):
-        return np.ascontiguousarray(self.normalize(self.data[index]))
