@@ -71,10 +71,20 @@ def export_onnx(model_name, file):
         dummy_input = rand_image()
     else:
         dummy_input = (rand_image(), rand_joint(), rand_state())
+    input_names = ["i.image"]
+    output_names = ["o.image"]
+    if model_name == "sarnn":
+        input_names += ["i.joint", "i.state_h", "i.state_c"]
+        output_names += ["o.joint", "o.enc_pts", "o.dec_pts", "o.state_h", "o.state_c"]
+    elif model_name in ["cnnrnn", "cnnrnnln"]:
+        input_names += ["i.joint", "i.state_h", "i.state_c"]
+        output_names += ["o.joint", "o.state_h", "o.state_c"]
     torch.onnx.export(
         model,
         dummy_input,
         file,
+        input_names=input_names,
+        output_names=output_names,
         verbose=True,
     )
     print(f"ONNX model exported to {file}")
