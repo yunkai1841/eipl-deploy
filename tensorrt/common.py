@@ -199,6 +199,8 @@ def nptype(trt_type):
 def allocate_buffers(engine: trt.ICudaEngine, profile_idx: Optional[int] = None):
     inputs = []
     outputs = []
+    input_names = []
+    output_names = []
     bindings = []
     stream = cuda_call(cudart.cudaStreamCreate())
     tensor_names = [engine.get_tensor_name(i) for i in range(engine.num_io_tensors)]
@@ -225,9 +227,11 @@ def allocate_buffers(engine: trt.ICudaEngine, profile_idx: Optional[int] = None)
         # Append to the appropriate list.
         if engine.get_tensor_mode(binding) == trt.TensorIOMode.INPUT:
             inputs.append(bindingMemory)
+            input_names.append(binding)
         else:
             outputs.append(bindingMemory)
-    return inputs, outputs, bindings, stream
+            output_names.append(binding)
+    return inputs, outputs, bindings, stream, input_names, output_names
 
 
 # Frees the resources allocated in allocate_buffers

@@ -57,12 +57,14 @@ class Joints(Data):
     ):
         super().__init__(data_path, dtype, dataset_index)
         self.joint_bounds = np.load("downloads/airec/grasp_bottle/joint_bounds.npy")
-        self.joint_bounds = self.joint_bounds[self.dataset_index]
 
     def normalize(self, joint):
         return (joint - self.joint_bounds[0]) / (
             self.joint_bounds[1] - self.joint_bounds[0]
         )
+    
+    def denormalize(self, joint):
+        return joint * (self.joint_bounds[1] - self.joint_bounds[0]) + self.joint_bounds[0]
 
 
 class Images(Data):
