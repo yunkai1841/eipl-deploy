@@ -37,7 +37,7 @@ if __name__ == "__main__":
             ),
             gr.Slider(
                 minimum=0,
-                maximum=100,
+                maximum=4,
                 step=1,
                 label="Index of the test data",
                 value=0,
