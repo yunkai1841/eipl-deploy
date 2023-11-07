@@ -66,11 +66,11 @@ fps={len(self.data) / sum(self.data)}
         plt.figure(figsize=(10, 5))
         plt.title("Inference time")
         plt.xlabel("Loop")
-        plt.ylabel("Time (s)")
-        plt.plot(self.data)
+        plt.ylabel("Time (ms)")
+        plt.plot([d * 1000 for d in self.data])
 
         # draw average line
-        avg = sum(self.data) / len(self.data)
+        avg = sum(self.data) * 1000 / len(self.data)
         plt.axhline(avg, color="r", linestyle="--", label="Average")
         plt.legend()
 

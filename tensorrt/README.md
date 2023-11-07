@@ -7,12 +7,19 @@
 3. install requirements
 ```bash
 sudo apt install python3-libnvinfer python3-libnvinfer-dev
-sudo pip install jetson_stats
-pip install cuda-python
+sudo pip install jetson-stats
+pip install cuda-python matplotlib
+pip install gradio # optional for web UI
 ```
 
 ## Run inference
 
+Run inference CUI
 ```bash
 python tensorrt/infer.py
+```
+
+Run inference with web UI
+```bash
+python tensorrt/launcher.py
 ```

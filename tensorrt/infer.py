@@ -21,21 +21,22 @@ models = ["sarnn", "cnnrnn", "cnnrnnln", "caebn"]
 def infer(
     model: Literal["sarnn", "cnnrnn", "cnnrnnln", "caebn"] = "sarnn",
     precision: Literal["fp32", "fp16", "int8"] = "fp32",
+    dataset_index: int = 0,
     model_path: Optional[str] = None,
-    warmup_loops: int = 1000,
+    warmup_iter: int = 1000,
     measure_power: bool = False,
     measure_time: bool = True,
     show_result: bool = False, # use false in server
+    progress_logger: Optional[object] = lambda x, y: print(y),
 ):
     # TODO: feature precision
-    print("infer")
     onnx_name = f"{model}.onnx"
     engine_name = f"{model}_{precision}.trt"
     if path.exists(engine_name):
-        print("load existing engine")
+        progress_logger(0.1, "load existing engine")
         engine = load_engine(engine_name)
     else:
-        print("engine not found, build engine")
+        progress_logger(0.1, "engine not found, build engine")
         engine = build_engine(onnx_name, engine_name)
 
     context = engine.create_execution_context()
@@ -44,8 +45,8 @@ def infer(
     input_names = {name: i for i, name in enumerate(input_names)}
     output_names = {name: i for i, name in enumerate(output_names)}
 
-    joints = Joints()
-    images = Images()
+    joints = Joints(dataset_index=dataset_index)
+    images = Images(dataset_index=dataset_index)
     lstm_state_h = np.zeros(50, order="C").astype(np.float32)
     lstm_state_c = np.zeros(50, order="C").astype(np.float32)
 
@@ -59,8 +60,8 @@ def infer(
     )
 
     # warmup
-    print(f"warmup {warmup_loops} loops")
-    for _ in range(warmup_loops):
+    progress_logger(0.3, f"warmup {warmup_iter} loops")
+    for _ in range(warmup_iter):
         inputs[input_names["i.image"]].host = images.random()
         inputs[input_names["i.joint"]].host = joints.random()
         inputs[input_names["i.state_h"]].host = np.random.random(50).astype(np.float32)
@@ -71,7 +72,7 @@ def infer(
     time.sleep(3)
 
     # inference
-    print("inference start")
+    progress_logger(0.5, "inference")
     if measure_power:
         power_logger.start_measure()
 
@@ -107,6 +108,8 @@ def infer(
         lstm_state_h = result[output_names["o.state_h"]].copy()
         lstm_state_c = result[output_names["o.state_c"]].copy()
 
+    progress_logger(0.7, "collecting result")
+
     if measure_power:
         power_logger.stop_measure()
         power_logger.summary(save="power.txt")
@@ -118,6 +121,7 @@ def infer(
         time_shower.save_csv(save="time.csv")
         time_shower.plot(show=show_result, save="time.png")
 
+    progress_logger(0.9, "encoding result video")
     inference_shower.plot(show=show_result, save="result.mp4")
 
 
