@@ -8,17 +8,16 @@
 import os
 import tarfile
 import json
-import numpy as np
 import urllib.request
 from urllib.error import URLError
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from models.functions.np_utils import normalize
 
-# root dir is $PWD/download
-DOWNLOADS_DIR = os.path.abspath("./downloads")
-with open("configs/download_url.json") as f:
-    data_dict = json.load(f)
+
+DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), os.path.pardir, "downloads")
+with open(
+    os.path.join(os.path.dirname(__file__), os.path.pardir, "configs/download_url.json")
+) as f:
+    DOWNLOAD_URL = json.load(f)
+
 
 class Downloader:
     def __init__(self, robot, task):
@@ -65,97 +64,6 @@ class Downloader:
             raise RuntimeError(f"Error downloading")
 
 
-class SampleDownloader(Downloader):
-    """Load the sample datasets. Both AIREC and OpenManipulator object grasping data are available.
-
-    !!! example "Example usage"
-
-        ```py
-        sample_data = SampleDownloader("airec", "grasp_bottle")
-        train_img, train_joints = sample_data.load_raw_data("train")
-        ```
-
-    Arguments:
-        robot (string): Name of the robot. Currently, the program supports AIREC and OpenManipulator.
-        task (string): Name of experimental task. Task name differs for each robot, see data_dict.
-        img_format (string): A typical image order is height, width, channel; if image_format='CHW', use transpose to reorder the channels for pytorch.
-    """
-
-    def __init__(self, robot, task, img_format="CHW"):
-        super().__init__(robot=robot, task=task)
-        self.robot = robot
-        self.task = task
-        self.img_format = img_format
-        self.root_dir = os.path.join(DOWNLOADS_DIR, robot)
-        mirror_urls = data_dict[robot][task]
-
-        # download data
-        self._download_tar_files(mirror_urls)
-
-        # load npy data
-        self.joint_bounds = self._load_bounds()
-
-    def _load_bounds(self):
-        """Download the data if it doesn't exist already.
-        The joint angles' maximum and minimum values are obtained as joint_bounds.
-        These values can either represent the overall maximum and minimum values in
-        the dataset or the maximum and minimum values for each individual joint angle.
-
-        Returns:
-            joint_bounds (numpy.array): The min/max bounder of joints angles, expected to be 2D array
-        """
-        joint_bounds = np.load(os.path.join(self.root_dir, self.task, "joint_bounds.npy"))
-
-        return joint_bounds
-
-    def _load_data(self, data_type):
-        """The function reads and returns image data and joint data of the specified type ("train" or "test").
-         The order of image data (CHW/HWC) can be changed by arguments.
-
-        Args:
-            data_type ([string]): Sets whether train or test data is to be loaded.
-
-        Returns:
-            images (numpy.array): The images data, expected to be a 5D array [data_num, seq_num, channel, height, width].
-            joints (numpy.array): The joints data, expected to be a 3D array [data_num, seq_num, joint_dim].
-        """
-        joints = np.load(os.path.join(self.root_dir, self.task, data_type, "joints.npy"))
-        images = np.load(os.path.join(self.root_dir, self.task, data_type, "images.npy"))
-        if self.img_format == "CHW":
-            images = images.transpose(0, 1, 4, 2, 3)
-
-        return images, joints
-
-    def load_raw_data(self, data_type="train"):
-        """Loads data according to the specified data type.
-        Args:
-            data_type (Optional[string]): Sets whether train or test data is to be loaded.
-
-        Returns:
-            images (numpy.array): The images data, expected to be a 5D array [data_num, seq_num, channel, height, width].
-            joints (numpy.array): The joints data, expected to be a 3D array [data_num, seq_num, joint_dim].
-        """
-
-        return self._load_data(data_type)
-
-    def load_norm_data(self, data_type="train", vmin=0.1, vmax=0.9):
-        """Loads data with normalization to a specified range.
-        Args:
-            data_type (Optional[string]): Default is train
-            vmin (Optional[float]): Lower limit of normalized data
-            vmax (Optional[float]): Upper limit of normalized data
-
-        Returns:
-            images (numpy.array): The images data, expected to be a 5D array [data_num, seq_num, channel, height, width].
-            joints (numpy.array): The joints data, expected to be a 3D array [data_num, seq_num, joint_dim].
-        """
-        images_raw, joints_raw = self._load_data(data_type)
-        images = normalize(images_raw.astype(np.float32), (0.0, 255.0), (vmin, vmax))
-        joints = normalize(joints_raw.astype(np.float32), self.joint_bounds, (vmin, vmax))
-
-        return images, joints
-
-
 class WeightDownloader(Downloader):
     """Download the pretrained weight.
 
@@ -177,14 +85,14 @@ class WeightDownloader(Downloader):
         self.root_dir = os.path.join(DOWNLOADS_DIR, robot)
 
         # download data
-        self._download_tar_files(data_dict[robot][task])
+        self._download_tar_files(DOWNLOAD_URL[robot][task])
 
 
 if __name__ == "__main__":
     # download all data
-    for robot in data_dict.keys():
-        for task in data_dict[robot].keys():
-            if not data_dict[robot][task]:
+    for robot in DOWNLOAD_URL.keys():
+        for task in DOWNLOAD_URL[robot].keys():
+            if not DOWNLOAD_URL[robot][task]:
                 print(f"Skip {robot}/{task} data")
                 continue
             else:

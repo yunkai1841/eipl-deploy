@@ -1,5 +1,5 @@
 """
-Profile CNNRNNLN inference
+Profile SARNN inference
 Inference with pretrained weight
 No write result only inference
 Download pretrained before run this script
@@ -8,13 +8,11 @@ import os
 import torch
 import time
 import json
-import sys
 import numpy as np
 import argparse
 from memory_profiler import profile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from models.cnnrnnln import CNNRNNLN
+from models.sarnn import SARNN
 
 
 argparser = argparse.ArgumentParser()
@@ -38,8 +36,8 @@ else:
     device = torch.device(args.device)
 print("device:{}".format(device))
 
-weight_file = "./downloads/airec/pretrained/CNNRNNLN/model.pth"
-params_file = "./downloads/airec/pretrained/CNNRNNLN/args.json"
+weight_file = "./downloads/airec/pretrained/SARNN/model.pth"
+params_file = "./downloads/airec/pretrained/SARNN/args.json"
 data_dir = "./downloads/airec/grasp_bottle"
 test_data_dir = "./downloads/airec/grasp_bottle/test"
 test_data_index = 0
@@ -59,9 +57,13 @@ joint_bounds = torch.from_numpy(joint_bounds).to(device)
 print("data loaded")
 
 # load model
-model = CNNRNNLN(rec_dim=params["rec_dim"], joint_dim=8, feat_dim=params["feat_dim"]).to(
-    device
-)
+model = SARNN(
+    rec_dim=params["rec_dim"],
+    joint_dim=8,
+    k_dim=params["k_dim"],
+    heatmap_size=params["heatmap_size"],
+    temperature=params["temperature"],
+).to(device)
 
 # load weight
 ckpt = torch.load(weight_file, map_location=device)
@@ -95,7 +97,7 @@ def inference():
         # if PyTorch<1.9 use torch.no_grad() instead
         with torch.inference_mode():
             start_time = time.time()
-            _, _, state = model(img_t, joint_t, state)
+            _, _, _, _, state = model(img_t, joint_t, state)
             end_time = time.time()
         elapsed = end_time - start_time
         time_list.append(elapsed)
