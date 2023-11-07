@@ -11,7 +11,6 @@ from logger import (
     PowerLogger,
     InferenceResultShower,
     sarnn_image_postprocess,
-    sarnn_joint_postprocess,
 )
 
 from typing import Optional, Literal
@@ -24,6 +23,9 @@ def infer(
     precision: Literal["fp32", "fp16", "int8"] = "fp32",
     model_path: Optional[str] = None,
     warmup_loops: int = 1000,
+    measure_power: bool = False,
+    measure_time: bool = True,
+    show_result: bool = False, # use false in server
 ):
     # TODO: feature precision
     print("infer")
@@ -47,11 +49,13 @@ def infer(
     lstm_state_h = np.zeros(50, order="C").astype(np.float32)
     lstm_state_c = np.zeros(50, order="C").astype(np.float32)
 
-    time_shower = TimeResultShower()
-    power_logger = PowerLogger()
+    if measure_power:
+        power_logger = PowerLogger()
+    if measure_time:
+        time_shower = TimeResultShower()
     inference_shower = InferenceResultShower(
         image_postprocess=sarnn_image_postprocess,
-        joint_postprocess=sarnn_joint_postprocess,
+        joint_postprocess=joints.denormalize,
     )
 
     # warmup
@@ -67,8 +71,10 @@ def infer(
     time.sleep(3)
 
     # inference
-    print("inference")
-    power_logger.start_measure()
+    print("inference start")
+    if measure_power:
+        power_logger.start_measure()
+
     n_loop = len(images)
     for loop_ct in range(n_loop):
         inputs[input_names["i.image"]].host = images[loop_ct]
@@ -84,7 +90,10 @@ def infer(
         t2 = time.time()
         elapsed = t2 - t1
         print("inference time:{}".format(elapsed))
-        time_shower.append(elapsed)
+
+        # postprocess
+        if measure_time:
+            time_shower.append(elapsed)
         inference_shower.append(
             images[loop_ct],
             result[output_names["o.image"]],
@@ -93,19 +102,23 @@ def infer(
             result[output_names["o.enc_pts"]],
             result[output_names["o.dec_pts"]],
         )
-        lstm_state_h = result[input_names["i.state_h"]]
-        lstm_state_c = result[input_names["i.state_c"]]
 
-    power_logger.stop_measure()
-    time_shower.summary(save="time.txt")
-    power_logger.summary(save="power.txt")
+        # update lstm state
+        lstm_state_h = result[output_names["o.state_h"]].copy()
+        lstm_state_c = result[output_names["o.state_c"]].copy()
 
-    time_shower.save_csv(save="time.csv")
-    power_logger.save_csv(save="power.csv")
+    if measure_power:
+        power_logger.stop_measure()
+        power_logger.summary(save="power.txt")
+        power_logger.save_csv(save="power.csv")
+        power_logger.plot(show=show_result, save="power.png")
 
-    time_shower.plot(show=False, save="time.png")
-    power_logger.plot(show=False, save="power.png")
-    inference_shower.plot(show=False, save="result.mp4")
+    if measure_time:
+        time_shower.summary(save="time.txt")
+        time_shower.save_csv(save="time.csv")
+        time_shower.plot(show=show_result, save="time.png")
+
+    inference_shower.plot(show=show_result, save="result.mp4")
 
 
 if __name__ == "__main__":

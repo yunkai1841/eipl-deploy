@@ -4,6 +4,12 @@ result/
 temp/
 cache/
 
+# dump files
+*.csv
+*.png
+*.mp4
+*.txt
+
 # Model binary
 *.onnx
 *.trt

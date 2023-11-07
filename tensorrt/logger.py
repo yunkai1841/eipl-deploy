@@ -62,12 +62,24 @@ fps={len(self.data) / sum(self.data)}
             matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
+        # axis x: loop, axis y: time (s)
+        plt.figure(figsize=(10, 5))
+        plt.title("Inference time")
+        plt.xlabel("Loop")
+        plt.ylabel("Time (s)")
         plt.plot(self.data)
+
+        # draw average line
+        avg = sum(self.data) / len(self.data)
+        plt.axhline(avg, color="r", linestyle="--", label="Average")
+        plt.legend()
+
         if show:
             plt.show()
         if save is not None:
             plt.savefig(save)
             print(f"saved figure to {save}")
+        plt.close()
 
     def save_csv(self, save: str):
         header = ["time"]
@@ -125,7 +137,7 @@ class PowerLogger(ResultShower):
         peak_power = max([d[1] for d in self.data])
         min_power = min([d[1] for d in self.data])
         format_str = f"""
-Power Result===============================
+Power Result==============================
 elapsed time={elapsed}
 avg power={avg_power}
 peak power={peak_power}
@@ -163,6 +175,7 @@ min power={min_power}
         if save is not None:
             plt.savefig(save)
             print(f"saved figure to {save}")
+        plt.close()
 
     def save_csv(self, save: str):
         header = ["time", "total"]
@@ -177,13 +190,6 @@ def sarnn_image_postprocess(image: np.ndarray) -> np.ndarray:
     image[np.where(image < 0)] = 0
     image[np.where(image > 255)] = 255
     return image
-
-
-def sarnn_joint_postprocess(joint: np.ndarray) -> np.ndarray:
-    from data_utils import Joints
-
-    j = Joints()
-    return j.denormalize(joint)
 
 
 class InferenceResultShower(ResultShower):
@@ -206,16 +212,25 @@ class InferenceResultShower(ResultShower):
         dec_pts: np.ndarray,
     ):
         now = time.time()
-        pred_image = self.image_postprocess(pred_image)
-        input_image = self.image_postprocess(input_image)
-        pred_joint = self.joint_postprocess(pred_joint)
-        input_joint = self.joint_postprocess(input_joint)
+        pred_image = self.image_postprocess(pred_image.copy())
+        input_image = self.image_postprocess(input_image.copy())
+        pred_joint = self.joint_postprocess(pred_joint.copy())
+        input_joint = self.joint_postprocess(input_joint.copy())
         self.data.append(
-            [now, pred_image, pred_joint, enc_pts, dec_pts, input_image, input_joint]
+            [
+                now,
+                pred_image,
+                pred_joint,
+                enc_pts.copy(),
+                dec_pts.copy(),
+                input_image,
+                input_joint,
+            ]
         )
 
     def plot(self, show: bool = True, save: Optional[str] = None):
         import matplotlib
+
         if not show:
             matplotlib.use("Agg")
         import matplotlib.pyplot as plt

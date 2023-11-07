@@ -26,7 +26,7 @@ class Data:
         self.data = self.data[self.dataset_index]
 
     def normalize(self, data: np.ndarray):
-        return (data - data.min(axis=0)) / (data.max(axis=0) - data.min(axis=0))
+        print("Not implemented")
 
     def __getitem__(self, index):
         if self.ascontiguousarray:
@@ -63,6 +63,12 @@ class Joints(Data):
             self.joint_bounds[1] - self.joint_bounds[0]
         )
     
+    def __getitem__(self, index):
+        if self.ascontiguousarray:
+            return np.ascontiguousarray(self.normalize(self.data[index]))
+        else:
+            return self.normalize(self.data[index])
+    
     def denormalize(self, joint):
         return joint * (self.joint_bounds[1] - self.joint_bounds[0]) + self.joint_bounds[0]
 
@@ -79,3 +85,33 @@ class Images(Data):
 
     def normalize(self, image):
         return image / 255.0
+    
+    def __getitem__(self, index):
+        if self.ascontiguousarray:
+            return np.ascontiguousarray(self.normalize(self.data[index]))
+        else:
+            return self.normalize(self.data[index])
+
+
+if __name__ == '__main__':
+    images = Images()
+    joints = Joints()
+    print(images[0].shape)
+    print(joints[0].shape)
+    print(images[0].dtype)
+    print(joints[0].dtype)
+    print(images[0].max())
+    print(images[0].min())
+    print(joints[0].max())
+    print(joints[0].min())
+
+    print(images.random().shape)
+    print(joints.random().shape)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from logger import sarnn_image_postprocess
+    plt.imshow(sarnn_image_postprocess(images[90]))
+    plt.savefig("test.png")
+    plt.close()
