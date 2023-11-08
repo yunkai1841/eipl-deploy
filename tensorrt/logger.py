@@ -3,6 +3,7 @@ import csv
 import threading
 import pathlib
 import numpy as np
+from jtop import jtop
 
 from typing import Optional, Callable
 
@@ -185,10 +186,10 @@ min power={min_power}
 def sarnn_image_postprocess(image: np.ndarray) -> np.ndarray:
     image = image.reshape(3, 128, 128)
     image = image.transpose(1, 2, 0)
+    image[np.where(image < 0.0)] = 0.0
+    image[np.where(image > 1.0)] = 1.0
     image = image * 255.0
     image = image.astype(np.uint8)
-    image[np.where(image < 0)] = 0
-    image[np.where(image > 255)] = 255
     return image
 
 
@@ -210,6 +211,7 @@ class InferenceResultShower(ResultShower):
         pred_joint: np.ndarray,
         enc_pts: np.ndarray,
         dec_pts: np.ndarray,
+        elapsed_time: float,
     ):
         now = time.time()
         pred_image = self.image_postprocess(pred_image.copy())
@@ -225,6 +227,7 @@ class InferenceResultShower(ResultShower):
                 dec_pts.copy(),
                 input_image,
                 input_joint,
+                elapsed_time,
             ]
         )
 
@@ -251,7 +254,7 @@ class InferenceResultShower(ResultShower):
         input_joint = np.array([d[6] for d in self.data])
 
         def anim_update(i):
-            now, pred_image, _, _, _, input_image, _ = self.data[i]
+            _, pred_image, _, _, _, input_image, _, elapsed_time = self.data[i]
             for j in range(3):
                 ax[j].cla()
 
@@ -274,7 +277,7 @@ class InferenceResultShower(ResultShower):
             # plot predicted image
             ax[1].imshow(pred_image)
             ax[1].axis("off")
-            ax[1].set_title("Predicted image")
+            ax[1].set_title(f"Predicted image \nelapsed time={(elapsed_time * 1000):.2f} ms")
 
             # plot joint angle
             ax[2].set_ylim(-1.0, 2.0)
@@ -287,7 +290,7 @@ class InferenceResultShower(ResultShower):
 
         T = len(self.data)
         ani = anim.FuncAnimation(
-            fig, anim_update, interval=int(np.ceil(T / 10)), frames=T
+            fig, anim_update, interval=100, frames=T
         )
         if show:
             plt.show()

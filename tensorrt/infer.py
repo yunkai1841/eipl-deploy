@@ -24,23 +24,36 @@ def infer(
     dataset_index: int = 0,
     model_path: Optional[str] = None,
     warmup_iter: int = 1000,
+    sleep_after_warmup: float = 0.0,
     measure_power: bool = False,
     measure_time: bool = True,
-    show_result: bool = False, # use false in server
-    progress_logger: Optional[object] = lambda x, y: print(y),
+    show_result: bool = False,  # use false in server
+    progress_logger: Optional[object] = lambda _, txt: print(txt),
 ):
     # TODO: feature precision
-    onnx_name = f"{model}.onnx"
-    engine_name = f"{model}_{precision}.trt"
-    if path.exists(engine_name):
-        progress_logger(0.1, "load existing engine")
-        engine = load_engine(engine_name)
+    if model_path is None:
+        onnx_name = f"{model}.onnx"
+        engine_name = f"{model}_{precision}.trt"
+        if path.exists(engine_name):
+            progress_logger(0.1, "load existing engine")
+            engine = load_engine(engine_name)
+        else:
+            progress_logger(0.1, "engine not found, build engine")
+            engine = build_engine(onnx_name, engine_name)
     else:
-        progress_logger(0.1, "engine not found, build engine")
-        engine = build_engine(onnx_name, engine_name)
+        model_type = path.splitext(model_path)[1]
+        if model_type == ".onnx":
+            engine_name = f"{path.splitext(model_path)[0]}_{precision}.trt"
+            engine = build_engine(model_path)
+        elif model_type == ".trt":
+            engine = load_engine(model_path)
+        else:
+            raise ValueError(f"unknown model type {model_type}")
 
     context = engine.create_execution_context()
-    inputs, outputs, bindings, stream, input_names, output_names = allocate_buffers(engine)
+    inputs, outputs, bindings, stream, input_names, output_names = allocate_buffers(
+        engine
+    )
     # make input_names and output_names dict
     input_names = {name: i for i, name in enumerate(input_names)}
     output_names = {name: i for i, name in enumerate(output_names)}
@@ -69,7 +82,8 @@ def infer(
         do_inference_v2(
             context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream
         )
-    time.sleep(3)
+    if sleep_after_warmup > 0:
+        time.sleep(sleep_after_warmup)
 
     # inference
     progress_logger(0.5, "inference")
@@ -102,6 +116,7 @@ def infer(
             result[output_names["o.joint"]],
             result[output_names["o.enc_pts"]],
             result[output_names["o.dec_pts"]],
+            elapsed,
         )
 
         # update lstm state
@@ -130,6 +145,9 @@ if __name__ == "__main__":
     args.add_argument("--model", choices=models, default="sarnn")
     args.add_argument("--int8", action="store_true")
     args.add_argument("--fp16", action="store_true")
+    args.add_argument("--dataset-index", type=int, default=0)
+    args.add_argument("--sleep-after-warmup", type=float, default=0.0)
+    args.add_argument("--power", action="store_true")
     args = args.parse_args()
 
     precision = "fp32"
@@ -138,4 +156,10 @@ if __name__ == "__main__":
     elif args.fp16:
         precision = "fp16"
 
-    infer(args.model, precision)
+    infer(
+        args.model,
+        precision,
+        measure_power=args.power,
+        dataset_index=args.dataset_index,
+        sleep_after_warmup=args.sleep_after_warmup,
+    )
