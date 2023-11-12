@@ -1,9 +1,16 @@
 import gradio as gr
 import argparse
+import os
 from infer import infer
 
 
 def infer_gradio(model, precision, index, warmup_iter, force_build_engine, progress=gr.Progress()):
+    # remove cached result before inference
+    if os.path.exists("result.mp4"):
+        os.remove("result.mp4")
+    if os.path.exists("time.png"):
+        os.remove("time.png")
+
     infer(
         model,
         precision,
@@ -52,8 +59,8 @@ if __name__ == "__main__":
             ),
             gr.Checkbox(
                 label="Force build engine",
-                default=False,
-                description="Ignore cached engine, and build new engine.",
+                value=False,
+                info="Ignore cached engine, and build new engine.",
             ),
         ],
         outputs=[gr.Video(), gr.Image()],

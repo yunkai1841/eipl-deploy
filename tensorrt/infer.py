@@ -36,20 +36,20 @@ def infer(
         onnx_name = f"{model}.onnx"
         engine_name = f"{model}_{precision}.trt"
         if path.exists(engine_name) and not force_build_engine:
-            progress_logger(0.1, "load existing engine")
+            progress_logger(0.1, "loading existing engine")
             engine = load_engine(engine_name)
         else:
-            progress_logger(0.1, "engine not found, build engine")
+            progress_logger(0.1, "building engine, this may take a while")
             engine = build_engine(onnx_name, engine_name, precision=precision)
     else:
         model_type = path.splitext(model_path)[1]
         if model_type == ".onnx":
             engine_name = f"{path.splitext(model_path)[0]}_{precision}.trt"
             if path.exists(engine_name) and not force_build_engine:
-                progress_logger(0.1, "load existing engine")
+                progress_logger(0.1, "loading existing engine")
                 engine = load_engine(engine_name)
             else:
-                progress_logger(0.1, "engine not found, build engine")
+                progress_logger(0.1, "building engine, this may take a while")
                 engine = build_engine(model_path, engine_name, precision=precision)
         elif model_type == ".trt":
             engine = load_engine(model_path)
@@ -80,7 +80,7 @@ def infer(
     )
 
     # warmup
-    progress_logger(0.3, f"warmup {warmup_iter} loops")
+    progress_logger(0.4, f"warming up {warmup_iter} loops")
     for _ in range(warmup_iter):
         inputs[input_names["i.image"]].host = images.random()
         inputs[input_names["i.joint"]].host = joints.random()
@@ -93,7 +93,7 @@ def infer(
         time.sleep(sleep_after_warmup)
 
     # inference
-    progress_logger(0.5, "inference")
+    progress_logger(0.5, "main inference")
     if measure_power:
         power_logger.start_measure()
 
@@ -130,7 +130,7 @@ def infer(
         lstm_state_h = result[output_names["o.state_h"]].copy()
         lstm_state_c = result[output_names["o.state_c"]].copy()
 
-    progress_logger(0.7, "collecting result")
+    progress_logger(0.6, "collecting result")
 
     if measure_power:
         power_logger.stop_measure()
@@ -143,7 +143,7 @@ def infer(
         time_shower.save_csv(save="time.csv")
         time_shower.plot(show=show_result, save="time.png")
 
-    progress_logger(0.9, "encoding result video")
+    progress_logger(0.7, "encoding result video, this may take a while")
     inference_shower.plot(show=show_result, save="result.mp4")
 
 
