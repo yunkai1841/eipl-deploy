@@ -28,23 +28,29 @@ def infer(
     measure_power: bool = False,
     measure_time: bool = True,
     show_result: bool = False,  # use false in server
+    force_build_engine: bool = False,
     progress_logger: Optional[object] = lambda _, txt: print(txt),
 ):
     # TODO: feature precision
     if model_path is None:
         onnx_name = f"{model}.onnx"
         engine_name = f"{model}_{precision}.trt"
-        if path.exists(engine_name):
+        if path.exists(engine_name) and not force_build_engine:
             progress_logger(0.1, "load existing engine")
             engine = load_engine(engine_name)
         else:
             progress_logger(0.1, "engine not found, build engine")
-            engine = build_engine(onnx_name, engine_name)
+            engine = build_engine(onnx_name, engine_name, precision=precision)
     else:
         model_type = path.splitext(model_path)[1]
         if model_type == ".onnx":
             engine_name = f"{path.splitext(model_path)[0]}_{precision}.trt"
-            engine = build_engine(model_path)
+            if path.exists(engine_name) and not force_build_engine:
+                progress_logger(0.1, "load existing engine")
+                engine = load_engine(engine_name)
+            else:
+                progress_logger(0.1, "engine not found, build engine")
+                engine = build_engine(model_path, engine_name, precision=precision)
         elif model_type == ".trt":
             engine = load_engine(model_path)
         else:
@@ -58,10 +64,11 @@ def infer(
     input_names = {name: i for i, name in enumerate(input_names)}
     output_names = {name: i for i, name in enumerate(output_names)}
 
-    joints = Joints(dataset_index=dataset_index)
-    images = Images(dataset_index=dataset_index)
-    lstm_state_h = np.zeros(50, order="C").astype(np.float32)
-    lstm_state_c = np.zeros(50, order="C").astype(np.float32)
+    np_dtype = np.float32
+    joints = Joints(dataset_index=dataset_index, dtype=np_dtype)
+    images = Images(dataset_index=dataset_index, dtype=np_dtype)
+    lstm_state_h = np.zeros(50, order="C").astype(np_dtype)
+    lstm_state_c = np.zeros(50, order="C").astype(np_dtype)
 
     if measure_power:
         power_logger = PowerLogger()
@@ -77,8 +84,8 @@ def infer(
     for _ in range(warmup_iter):
         inputs[input_names["i.image"]].host = images.random()
         inputs[input_names["i.joint"]].host = joints.random()
-        inputs[input_names["i.state_h"]].host = np.random.random(50).astype(np.float32)
-        inputs[input_names["i.state_c"]].host = np.random.random(50).astype(np.float32)
+        inputs[input_names["i.state_h"]].host = np.random.random(50).astype(np_dtype)
+        inputs[input_names["i.state_c"]].host = np.random.random(50).astype(np_dtype)
         do_inference_v2(
             context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream
         )
@@ -148,7 +155,30 @@ if __name__ == "__main__":
     args.add_argument("--dataset-index", type=int, default=0)
     args.add_argument("--sleep-after-warmup", type=float, default=0.0)
     args.add_argument("--power", action="store_true")
+    args.add_argument(
+        "--clear-result",
+        action="store_true",
+        help="clear result files(*.txt, *.csv, *.png, *.mp4)",
+    )
+    args.add_argument(
+        "--force-build",
+        action="store_true",
+        help="ignore cached engine, and build new engine",
+    )
     args = args.parse_args()
+
+    if args.clear_result:
+        import glob
+        import os
+
+        for f in glob.glob("*.txt"):
+            os.remove(f)
+        for f in glob.glob("*.csv"):
+            os.remove(f)
+        for f in glob.glob("*.png"):
+            os.remove(f)
+        for f in glob.glob("*.mp4"):
+            os.remove(f)
 
     precision = "fp32"
     if args.int8:
@@ -162,4 +192,5 @@ if __name__ == "__main__":
         measure_power=args.power,
         dataset_index=args.dataset_index,
         sleep_after_warmup=args.sleep_after_warmup,
+        force_build_engine=args.force_build,
     )

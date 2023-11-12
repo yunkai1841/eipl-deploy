@@ -3,12 +3,13 @@ import argparse
 from infer import infer
 
 
-def infer_gradio(model, precision, index, warmup_iter, progress=gr.Progress()):
+def infer_gradio(model, precision, index, warmup_iter, force_build_engine, progress=gr.Progress()):
     infer(
         model,
         precision,
         dataset_index=index,
         warmup_iter=warmup_iter,
+        force_build_engine=force_build_engine,
         progress_logger=progress,
     )
     return "result.mp4", "time.png"
@@ -30,10 +31,10 @@ if __name__ == "__main__":
             ),
             gr.Radio(
                 # ["fp32", "fp16", "int8"],
-                ["fp32"],
+                ["fp32", "fp16"],
                 label="Precision",
                 value="fp32",
-                info="fp16, int8 is not supported yet.",
+                info="fp16 is experimental, int8 is not supported yet.",
             ),
             gr.Slider(
                 minimum=0,
@@ -48,6 +49,11 @@ if __name__ == "__main__":
                 precision=0,
                 step=500,
                 info="How many times to run the model before measuring performance.",
+            ),
+            gr.Checkbox(
+                label="Force build engine",
+                default=False,
+                description="Ignore cached engine, and build new engine.",
             ),
         ],
         outputs=[gr.Video(), gr.Image()],
