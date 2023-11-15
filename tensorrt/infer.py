@@ -1,10 +1,10 @@
 import time
 import argparse
-from os import path
+from os import path, remove
 import numpy as np
 
 from common import allocate_buffers, do_inference_v2
-from trt_utils import build_engine, load_engine
+from trt_utils import build_engine, load_engine, gen_calibration_data
 from data_utils import Joints, Images
 from logger import (
     TimeResultShower,
@@ -31,7 +31,6 @@ def infer(
     force_build_engine: bool = False,
     progress_logger: Optional[object] = lambda _, txt: print(txt),
 ):
-    # TODO: feature precision
     if model_path is None:
         onnx_name = f"{model}.onnx"
         engine_name = f"{model}_{precision}.trt"
@@ -148,43 +147,53 @@ def infer(
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser()
-    args.add_argument("--model", choices=models, default="sarnn")
-    args.add_argument("--int8", action="store_true")
-    args.add_argument("--fp16", action="store_true")
-    args.add_argument("--dataset-index", type=int, default=0)
-    args.add_argument("--sleep-after-warmup", type=float, default=0.0)
-    args.add_argument("--power", action="store_true")
-    args.add_argument(
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", choices=models, default="sarnn")
+    parser.add_argument("--int8", action="store_true")
+    parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--dataset-index", type=int, default=0)
+    parser.add_argument("--sleep-after-warmup", type=float, default=0.0)
+    parser.add_argument("--power", action="store_true")
+    parser.add_argument(
         "--clear-result",
         action="store_true",
         help="clear result files(*.txt, *.csv, *.png, *.mp4)",
     )
-    args.add_argument(
+    parser.add_argument(
         "--force-build",
         action="store_true",
         help="ignore cached engine, and build new engine",
     )
-    args = args.parse_args()
+    parser.add_argument(
+        "--gen-calibration-data",
+        action="store_true",
+        help="generate calibration data for int8 mode",
+    )
+    args = parser.parse_args()
 
     if args.clear_result:
-        import glob
-        import os
-
-        for f in glob.glob("*.txt"):
-            os.remove(f)
-        for f in glob.glob("*.csv"):
-            os.remove(f)
-        for f in glob.glob("*.png"):
-            os.remove(f)
-        for f in glob.glob("*.mp4"):
-            os.remove(f)
+        result_files = [
+            "power.txt",
+            "power.csv",
+            "power.png",
+            "time.txt",
+            "time.csv",
+            "time.png",
+            "result.mp4",
+        ]
+        for file in result_files:
+            if path.exists(file):
+                remove(file)
 
     precision = "fp32"
     if args.int8:
         precision = "int8"
     elif args.fp16:
         precision = "fp16"
+
+    if args.gen_calibration_data:
+        gen_calibration_data(model=args.model, dataset_index=args.dataset_index)
+        exit(0)
 
     infer(
         args.model,
