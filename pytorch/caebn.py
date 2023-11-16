@@ -81,9 +81,9 @@ def inference():
 
         # if PyTorch<1.9 use torch.no_grad() instead
         with torch.inference_mode():
-            start_time = time.time()
+            start_time = time.perf_counter()
             model(img_t)
-            end_time = time.time()
+            end_time = time.perf_counter()
         elapsed = end_time - start_time
         time_list.append(elapsed)
 
@@ -100,9 +100,9 @@ def parallel_inference():
     img = images / 255.0
     with torch.inference_mode():
         model(img) # warm up
-        start_time = time.time()
+        start_time = time.perf_counter()
         model(img)
-        end_time = time.time()
+        end_time = time.perf_counter()
     elapsed = end_time - start_time
 
     print("\n\nsummary=====================================")
