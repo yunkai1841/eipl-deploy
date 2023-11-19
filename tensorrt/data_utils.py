@@ -16,6 +16,7 @@ class Data:
         self.dtype = dtype
         self.dataset_index = dataset_index
         self.ascontiguousarray = ascontiguousarray  # required for tensorrt
+        self.iter_current = 0
         if not no_load:
             self.load()
 
@@ -46,7 +47,17 @@ class Data:
 
     def __len__(self):
         return len(self.data)
-
+    
+    def __iter__(self):
+        self.iter_current = 0
+        return self
+    
+    def __next__(self):
+        if self.iter_current < len(self.data):
+            self.iter_current += 1
+            return self[self.iter_current - 1]
+        else:
+            raise StopIteration()
 
 class Joints(Data):
     def __init__(

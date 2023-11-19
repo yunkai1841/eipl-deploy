@@ -3,6 +3,7 @@ downloads/
 result/
 temp/
 cache/
+calibration/
 
 # dump files
 *.csv
