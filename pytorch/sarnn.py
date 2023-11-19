@@ -96,9 +96,9 @@ def inference():
 
         # if PyTorch<1.9 use torch.no_grad() instead
         with torch.inference_mode():
-            start_time = time.time()
+            start_time = time.perf_counter()
             _, _, _, _, state = model(img_t, joint_t, state)
-            end_time = time.time()
+            end_time = time.perf_counter()
         elapsed = end_time - start_time
         time_list.append(elapsed)
 

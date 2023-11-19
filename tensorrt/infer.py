@@ -104,11 +104,11 @@ def infer(
         inputs[input_names["i.state_c"]].host = lstm_state_c
 
         # inference
-        t1 = time.time()
+        t1 = time.perf_counter()
         result = do_inference_v2(
             context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream
         )
-        t2 = time.time()
+        t2 = time.perf_counter()
         elapsed = t2 - t1
         print("inference time:{}".format(elapsed))
 
