@@ -31,16 +31,14 @@ if __name__ == "__main__":
         fn=infer_gradio,
         inputs=[
             gr.Radio(
-                ["sarnn"],
-                label="Model",
+                ["sarnn", "cnnrnn", "cnnrnnln", "caebn"],
+                label="Model name",
                 value="sarnn",
-                info="cnnrnn, cnnrnnln, caebn is not supported yet.",
             ),
             gr.Radio(
                 ["fp32", "fp16", "int8"],
                 label="Precision",
                 value="fp32",
-                info="fp16 is experimental, int8 is not supported yet.",
             ),
             gr.Slider(
                 minimum=0,
