@@ -12,7 +12,7 @@ LOG_LEVEL = trt.Logger.INFO
 # LOG_LEVEL = trt.Logger.VERBOSE # for debug
 
 
-def build_engine(onnx_file_path, engine_file_path, precision="fp32"):
+def build_engine(model, onnx_file_path, engine_file_path, precision="fp32"):
     """
     Build TensorRT engine from ONNX file and save it.
     """
@@ -41,7 +41,7 @@ def build_engine(onnx_file_path, engine_file_path, precision="fp32"):
                 "INT8 mode requested on a platform that doesn't support it!"
             )
         config.set_flag(trt.BuilderFlag.INT8)
-        config.int8_calibrator = SarnnCalibrator()
+        config.int8_calibrator = Int8Calibrator(model=model)
     # config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 20) # 1 MiB
     serialized_engine = builder.build_serialized_network(network, config)
     with open(engine_file_path, "wb") as f:
@@ -64,20 +64,21 @@ def load_engine(engine_file_path):
     return engine
 
 
-class SarnnCalibrator(trt.IInt8EntropyCalibrator2):
-    def __init__(
-        self, calibration_data_dir: str = "calibration/sarnn", rm_cache: bool = False
-    ):
-        super(SarnnCalibrator, self).__init__()
+class Int8Calibrator(trt.IInt8EntropyCalibrator2):
+    def __init__(self, model: str = "sarnn", rm_cache: bool = False):
+        super(Int8Calibrator, self).__init__()
+        self.model = model
+        calibration_data_dir = f"calibration/{model}"
         self.cache_file = path.join(calibration_data_dir, "calibration.cache")
         if rm_cache and path.exists(self.cache_file):
             remove(self.cache_file)
         if not path.exists(calibration_data_dir):
-            gen_calibration_data(model="sarnn", dataset_index=0)
-        self.joints = np.load(f"{calibration_data_dir}/joint.npy")
+            gen_calibration_data(model=model, dataset_index=0)
         self.images = np.load(f"{calibration_data_dir}/image.npy")
-        self.state_h = np.load(f"{calibration_data_dir}/state_h.npy")
-        self.state_c = np.load(f"{calibration_data_dir}/state_c.npy")
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            self.joints = np.load(f"{calibration_data_dir}/joint.npy")
+            self.state_h = np.load(f"{calibration_data_dir}/state_h.npy")
+            self.state_c = np.load(f"{calibration_data_dir}/state_c.npy")
         self.batch_size = 1
         self.input_shapes = {
             "i.image": (3, 128, 128),
@@ -102,15 +103,19 @@ class SarnnCalibrator(trt.IInt8EntropyCalibrator2):
             return None
         else:
             image = self.images[self.batch_idx]
-            joint = self.joints[self.batch_idx]
-            state_h = self.state_h[self.batch_idx]
-            state_c = self.state_c[self.batch_idx]
-            self.batch_idx += 1
             self.host_device_mem_dic["i.image"].host = image
-            self.host_device_mem_dic["i.joint"].host = joint
-            self.host_device_mem_dic["i.state_h"].host = state_h
-            self.host_device_mem_dic["i.state_c"].host = state_c
-            return [self.host_device_mem_dic[name].device for name in names]
+            if self.model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+                joint = self.joints[self.batch_idx]
+                state_h = self.state_h[self.batch_idx]
+                state_c = self.state_c[self.batch_idx]
+                self.host_device_mem_dic["i.joint"].host = joint
+                self.host_device_mem_dic["i.state_h"].host = state_h
+                self.host_device_mem_dic["i.state_c"].host = state_c
+            self.batch_idx += 1
+            if self.model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+                return [self.host_device_mem_dic[name].device for name in names]
+            else:
+                return [self.host_device_mem_dic["i.image"].device]
 
     def read_calibration_cache(self):
         # If there is a cache, use it instead of calibrating again. Otherwise, implicitly return None.
@@ -159,14 +164,16 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
     for loop_ct in range(n_loop):
         if loop_ct in save_index:
             save_data["image"].append(images[loop_ct])
-            save_data["joint"].append(joints[loop_ct])
-            save_data["state_h"].append(lstm_state_h)
-            save_data["state_c"].append(lstm_state_c)
+            if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+                save_data["joint"].append(joints[loop_ct])
+                save_data["state_h"].append(lstm_state_h)
+                save_data["state_c"].append(lstm_state_c)
 
         inputs[input_names["i.image"]].host = images[loop_ct]
-        inputs[input_names["i.joint"]].host = joints[loop_ct]
-        inputs[input_names["i.state_h"]].host = lstm_state_h
-        inputs[input_names["i.state_c"]].host = lstm_state_c
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            inputs[input_names["i.joint"]].host = joints[loop_ct]
+            inputs[input_names["i.state_h"]].host = lstm_state_h
+            inputs[input_names["i.state_c"]].host = lstm_state_c
 
         # inference
         result = do_inference_v2(
@@ -174,8 +181,9 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
         )
 
         # update lstm state
-        lstm_state_h = result[output_names["o.state_h"]].copy()
-        lstm_state_c = result[output_names["o.state_c"]].copy()
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            lstm_state_h = result[output_names["o.state_h"]].copy()
+            lstm_state_c = result[output_names["o.state_c"]].copy()
 
     # save calibration data
     dir_name = f"calibration/{model}"
@@ -183,6 +191,7 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
         makedirs(dir_name)
 
     np.save(f"{dir_name}/image.npy", np.array(save_data["image"]))
-    np.save(f"{dir_name}/joint.npy", np.array(save_data["joint"]))
-    np.save(f"{dir_name}/state_h.npy", np.array(save_data["state_h"]))
-    np.save(f"{dir_name}/state_c.npy", np.array(save_data["state_c"]))
+    if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+        np.save(f"{dir_name}/joint.npy", np.array(save_data["joint"]))
+        np.save(f"{dir_name}/state_h.npy", np.array(save_data["state_h"]))
+        np.save(f"{dir_name}/state_c.npy", np.array(save_data["state_c"]))

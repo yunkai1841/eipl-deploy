@@ -36,7 +36,7 @@ class SARNN(nn.Module):
         temperature=1e-4,
         heatmap_size=0.1,
         kernel_size=3,
-        activation: type_activation="lrelu",
+        activation: type_activation = "lrelu",
         im_size=[128, 128],
     ):
         super(SARNN, self).__init__()
@@ -45,7 +45,10 @@ class SARNN(nn.Module):
 
         activation = get_activation_fn(activation)
 
-        sub_im_size = [im_size[0] - 3 * (kernel_size - 1), im_size[1] - 3 * (kernel_size - 1)]
+        sub_im_size = [
+            im_size[0] - 3 * (kernel_size - 1),
+            im_size[1] - 3 * (kernel_size - 1),
+        ]
         self.temperature = temperature
         self.heatmap_size = heatmap_size
 
@@ -98,7 +101,9 @@ class SARNN(nn.Module):
 
         # Image Decoder
         self.decoder_image = nn.Sequential(
-            nn.ConvTranspose2d(self.k_dim, 32, 3, 1, 0),  # Transposed Convolutional layer 1
+            nn.ConvTranspose2d(
+                self.k_dim, 32, 3, 1, 0
+            ),  # Transposed Convolutional layer 1
             activation,
             nn.ConvTranspose2d(32, 16, 3, 1, 0),  # Transposed Convolutional layer 2
             activation,

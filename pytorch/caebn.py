@@ -55,9 +55,7 @@ images = torch.from_numpy(np.transpose(images, (0, 3, 1, 2))).to(device)
 print("data loaded")
 
 # load model
-model = CAEBN(feat_dim=params["feat_dim"]).to(
-    device
-)
+model = CAEBN(feat_dim=params["feat_dim"]).to(device)
 
 # load weight
 ckpt = torch.load(weight_file, map_location=device)
@@ -96,10 +94,11 @@ def inference():
                 f"inference time={elapsed}, avg time={sum(time_list[1:]) / len(time_list[1:])}"
             )
 
+
 def parallel_inference():
     img = images / 255.0
     with torch.inference_mode():
-        model(img) # warm up
+        model(img)  # warm up
         start_time = time.perf_counter()
         model(img)
         end_time = time.perf_counter()

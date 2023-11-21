@@ -34,6 +34,7 @@ except NameError:
 
 EXPLICIT_BATCH = 1 << (int)(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
 
+
 def check_cuda_err(err):
     if isinstance(err, cuda.CUresult):
         if err != cuda.CUresult.CUDA_SUCCESS:
@@ -44,6 +45,7 @@ def check_cuda_err(err):
     else:
         raise RuntimeError("Unknown error type: {}".format(err))
 
+
 def cuda_call(call):
     err, res = call[0], call[1:]
     check_cuda_err(err)
@@ -51,16 +53,21 @@ def cuda_call(call):
         res = res[0]
     return res
 
+
 def GiB(val):
     return val * 1 << 30
 
 
 def add_help(description):
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     args, _ = parser.parse_known_args()
 
 
-def find_sample_data(description="Runs a TensorRT Python sample", subfolder="", find_files=[], err_msg=""):
+def find_sample_data(
+    description="Runs a TensorRT Python sample", subfolder="", find_files=[], err_msg=""
+):
     """
     Parses sample arguments.
 
@@ -75,7 +82,9 @@ def find_sample_data(description="Runs a TensorRT Python sample", subfolder="", 
 
     # Standard command-line arguments for all samples.
     kDEFAULT_DATA_ROOT = os.path.join(os.sep, "usr", "src", "tensorrt", "data")
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "-d",
         "--datadir",
@@ -90,7 +99,13 @@ def find_sample_data(description="Runs a TensorRT Python sample", subfolder="", 
         data_path = os.path.join(data_dir, subfolder)
         if not os.path.exists(data_path):
             if data_dir != kDEFAULT_DATA_ROOT:
-                print("WARNING: " + data_path + " does not exist. Trying " + data_dir + " instead.")
+                print(
+                    "WARNING: "
+                    + data_path
+                    + " does not exist. Trying "
+                    + data_dir
+                    + " instead."
+                )
             data_path = data_dir
         # Make sure data directory exists.
         if not (os.path.exists(data_path)) and data_dir != kDEFAULT_DATA_ROOT:
@@ -133,13 +148,16 @@ def locate_files(data_paths, filenames, err_msg=""):
     for f, filename in zip(found_files, filenames):
         if not f or not os.path.exists(f):
             raise FileNotFoundError(
-                "Could not find {:}. Searched in data paths: {:}\n{:}".format(filename, data_paths, err_msg)
+                "Could not find {:}. Searched in data paths: {:}\n{:}".format(
+                    filename, data_paths, err_msg
+                )
             )
     return found_files
 
 
 class HostDeviceMem:
     """Pair of host and device memory, where the host memory is wrapped in a numpy array"""
+
     def __init__(self, size: int, dtype: np.dtype):
         nbytes = size * dtype.itemsize
         host_mem = cuda_call(cudart.cudaMallocHost(nbytes))
@@ -159,7 +177,7 @@ class HostDeviceMem:
             raise ValueError(
                 f"Tried to fit an array of size {arr.size} into host memory of size {self.host.size}"
             )
-        np.copyto(self.host[:arr.size], arr.flat, casting='safe')
+        np.copyto(self.host[: arr.size], arr.flat, casting="safe")
 
     @property
     def device(self) -> int:
@@ -191,7 +209,9 @@ def nptype(trt_type):
     }
     if trt_type in mapping:
         return mapping[trt_type]
-    raise TypeError("Could not resolve TensorRT datatype to an equivalent numpy datatype.")
+    raise TypeError(
+        "Could not resolve TensorRT datatype to an equivalent numpy datatype."
+    )
 
 
 # Allocates all buffers required for an engine, i.e. host/device inputs/outputs.
@@ -207,15 +227,21 @@ def allocate_buffers(engine: trt.ICudaEngine, profile_idx: Optional[int] = None)
     for binding in tensor_names:
         # get_tensor_profile_shape returns (min_shape, optimal_shape, max_shape)
         # Pick out the max shape to allocate enough memory for the binding.
-        shape = engine.get_tensor_shape(binding) if profile_idx is None else engine.get_tensor_profile_shape(binding, profile_idx)[-1]
+        shape = (
+            engine.get_tensor_shape(binding)
+            if profile_idx is None
+            else engine.get_tensor_profile_shape(binding, profile_idx)[-1]
+        )
         shape_valid = np.all([s >= 0 for s in shape])
         if not shape_valid and profile_idx is None:
-            raise ValueError(f"Binding {binding} has dynamic shape, " +\
-                "but no profile was specified.")
+            raise ValueError(
+                f"Binding {binding} has dynamic shape, "
+                + "but no profile was specified."
+            )
         size = trt.volume(shape)
         if engine.has_implicit_batch_dimension:
             size *= engine.max_batch_size
-        
+
         dtype = np.dtype(nptype(engine.get_tensor_dtype(binding)))
 
         # Allocate host and device buffers
@@ -235,7 +261,11 @@ def allocate_buffers(engine: trt.ICudaEngine, profile_idx: Optional[int] = None)
 
 
 # Frees the resources allocated in allocate_buffers
-def free_buffers(inputs: List[HostDeviceMem], outputs: List[HostDeviceMem], stream: cudart.cudaStream_t):
+def free_buffers(
+    inputs: List[HostDeviceMem],
+    outputs: List[HostDeviceMem],
+    stream: cudart.cudaStream_t,
+):
     for mem in inputs + outputs:
         mem.free()
     cuda_call(cudart.cudaStreamDestroy(stream))
@@ -244,24 +274,42 @@ def free_buffers(inputs: List[HostDeviceMem], outputs: List[HostDeviceMem], stre
 # Wrapper for cudaMemcpy which infers copy size and does error checking
 def memcpy_host_to_device(device_ptr: int, host_arr: np.ndarray):
     nbytes = host_arr.size * host_arr.itemsize
-    cuda_call(cudart.cudaMemcpy(device_ptr, host_arr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice))
+    cuda_call(
+        cudart.cudaMemcpy(
+            device_ptr, host_arr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice
+        )
+    )
 
 
 # Wrapper for cudaMemcpy which infers copy size and does error checking
 def memcpy_device_to_host(host_arr: np.ndarray, device_ptr: int):
     nbytes = host_arr.size * host_arr.itemsize
-    cuda_call(cudart.cudaMemcpy(host_arr, device_ptr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost))
+    cuda_call(
+        cudart.cudaMemcpy(
+            host_arr, device_ptr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost
+        )
+    )
 
 
 def _do_inference_base(inputs, outputs, stream, execute_async):
     # Transfer input data to the GPU.
     kind = cudart.cudaMemcpyKind.cudaMemcpyHostToDevice
-    [cuda_call(cudart.cudaMemcpyAsync(inp.device, inp.host, inp.nbytes, kind, stream)) for inp in inputs]
+    [
+        cuda_call(
+            cudart.cudaMemcpyAsync(inp.device, inp.host, inp.nbytes, kind, stream)
+        )
+        for inp in inputs
+    ]
     # Run inference.
     execute_async()
     # Transfer predictions back from the GPU.
     kind = cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost
-    [cuda_call(cudart.cudaMemcpyAsync(out.host, out.device, out.nbytes, kind, stream)) for out in outputs]
+    [
+        cuda_call(
+            cudart.cudaMemcpyAsync(out.host, out.device, out.nbytes, kind, stream)
+        )
+        for out in outputs
+    ]
     # Synchronize the stream
     cuda_call(cudart.cudaStreamSynchronize(stream))
     # Return only the host outputs.
@@ -272,7 +320,10 @@ def _do_inference_base(inputs, outputs, stream, execute_async):
 # inputs and outputs are expected to be lists of HostDeviceMem objects.
 def do_inference(context, bindings, inputs, outputs, stream, batch_size=1):
     def execute_async():
-        context.execute_async(batch_size=batch_size, bindings=bindings, stream_handle=stream)
+        context.execute_async(
+            batch_size=batch_size, bindings=bindings, stream_handle=stream
+        )
+
     return _do_inference_base(inputs, outputs, stream, execute_async)
 
 
@@ -281,4 +332,5 @@ def do_inference(context, bindings, inputs, outputs, stream, batch_size=1):
 def do_inference_v2(context, bindings, inputs, outputs, stream):
     def execute_async():
         context.execute_async_v2(bindings=bindings, stream_handle=stream)
+
     return _do_inference_base(inputs, outputs, stream, execute_async)

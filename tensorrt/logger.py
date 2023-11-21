@@ -5,7 +5,7 @@ import pathlib
 import numpy as np
 from jtop import jtop
 
-from typing import Optional, Callable
+from typing import Optional, Callable, Literal
 
 
 class ResultShower:
@@ -196,10 +196,12 @@ def sarnn_image_postprocess(image: np.ndarray) -> np.ndarray:
 class InferenceResultShower(ResultShower):
     def __init__(
         self,
+        model: Literal["sarnn", "cnnrnn", "cnnrnnln", "caebn"] = "sarnn",
         image_postprocess: Callable[[np.ndarray], np.ndarray] = lambda x: x,
         joint_postprocess: Callable[[np.ndarray], np.ndarray] = lambda x: x,
     ):
         super().__init__()
+        self.model = model
         self.image_postprocess = image_postprocess
         self.joint_postprocess = joint_postprocess
 
@@ -243,15 +245,17 @@ class InferenceResultShower(ResultShower):
 
         img_size = 128
         k_dim = 5
-        enc_pts = np.array([d[3] for d in self.data])
-        dec_pts = np.array([d[4] for d in self.data])
-        enc_pts = enc_pts.reshape(-1, k_dim, 2) * img_size
-        dec_pts = dec_pts.reshape(-1, k_dim, 2) * img_size
-        enc_pts = np.clip(enc_pts, 0, img_size)
-        dec_pts = np.clip(dec_pts, 0, img_size)
+        if self.model == "sarnn":
+            enc_pts = np.array([d[3] for d in self.data])
+            dec_pts = np.array([d[4] for d in self.data])
+            enc_pts = enc_pts.reshape(-1, k_dim, 2) * img_size
+            dec_pts = dec_pts.reshape(-1, k_dim, 2) * img_size
+            enc_pts = np.clip(enc_pts, 0, img_size)
+            dec_pts = np.clip(dec_pts, 0, img_size)
 
-        pred_joint = np.array([d[2] for d in self.data])
-        input_joint = np.array([d[6] for d in self.data])
+        if self.model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            pred_joint = np.array([d[2] for d in self.data])
+            input_joint = np.array([d[6] for d in self.data])
 
         def anim_update(i):
             _, pred_image, _, _, _, input_image, _, elapsed_time = self.data[i]
@@ -260,38 +264,40 @@ class InferenceResultShower(ResultShower):
 
             # plot camera image
             ax[0].imshow(input_image)
-            for j in range(k_dim):
-                ax[0].plot(
-                    enc_pts[i, j, 0], enc_pts[i, j, 1], "bo", markersize=6
-                )  # encoder
-                ax[0].plot(
-                    dec_pts[i, j, 0],
-                    dec_pts[i, j, 1],
-                    "rx",
-                    markersize=6,
-                    markeredgewidth=2,
-                )  # decoder
+            if self.model == "sarnn":
+                for j in range(k_dim):
+                    ax[0].plot(
+                        enc_pts[i, j, 0], enc_pts[i, j, 1], "bo", markersize=6
+                    )  # encoder
+                    ax[0].plot(
+                        dec_pts[i, j, 0],
+                        dec_pts[i, j, 1],
+                        "rx",
+                        markersize=6,
+                        markeredgewidth=2,
+                    )  # decoder
             ax[0].axis("off")
             ax[0].set_title("Input image")
 
             # plot predicted image
             ax[1].imshow(pred_image)
             ax[1].axis("off")
-            ax[1].set_title(f"Predicted image \nelapsed time={(elapsed_time * 1000):.2f} ms")
+            ax[1].set_title(
+                f"Predicted image \nelapsed time={(elapsed_time * 1000):.2f} ms"
+            )
 
             # plot joint angle
-            ax[2].set_ylim(-1.0, 2.0)
-            ax[2].set_xlim(0, T)
-            ax[2].plot(input_joint[1:], linestyle="dashed", c="k")
-            for joint_idx in range(8):
-                ax[2].plot(np.arange(i + 1), pred_joint[: i + 1, joint_idx])
-            ax[2].set_xlabel("Step")
-            ax[2].set_title("Joint angles")
+            if self.model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+                ax[2].set_ylim(-1.0, 2.0)
+                ax[2].set_xlim(0, T)
+                ax[2].plot(input_joint[1:], linestyle="dashed", c="k")
+                for joint_idx in range(8):
+                    ax[2].plot(np.arange(i + 1), pred_joint[: i + 1, joint_idx])
+                ax[2].set_xlabel("Step")
+                ax[2].set_title("Joint angles")
 
         T = len(self.data)
-        ani = anim.FuncAnimation(
-            fig, anim_update, interval=100, frames=T
-        )
+        ani = anim.FuncAnimation(fig, anim_update, interval=100, frames=T)
         if show:
             plt.show()
         if save is not None:

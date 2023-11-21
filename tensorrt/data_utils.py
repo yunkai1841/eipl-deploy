@@ -47,17 +47,18 @@ class Data:
 
     def __len__(self):
         return len(self.data)
-    
+
     def __iter__(self):
         self.iter_current = 0
         return self
-    
+
     def __next__(self):
         if self.iter_current < len(self.data):
             self.iter_current += 1
             return self[self.iter_current - 1]
         else:
             raise StopIteration()
+
 
 class Joints(Data):
     def __init__(
@@ -73,15 +74,17 @@ class Joints(Data):
         return (joint - self.joint_bounds[0]) / (
             self.joint_bounds[1] - self.joint_bounds[0]
         )
-    
+
     def __getitem__(self, index):
         if self.ascontiguousarray:
             return np.ascontiguousarray(self.normalize(self.data[index]))
         else:
             return self.normalize(self.data[index])
-    
+
     def denormalize(self, joint):
-        return joint * (self.joint_bounds[1] - self.joint_bounds[0]) + self.joint_bounds[0]
+        return (
+            joint * (self.joint_bounds[1] - self.joint_bounds[0]) + self.joint_bounds[0]
+        )
 
 
 class Images(Data):
@@ -96,7 +99,7 @@ class Images(Data):
 
     def normalize(self, image):
         return image / 255.0
-    
+
     def __getitem__(self, index):
         if self.ascontiguousarray:
             return np.ascontiguousarray(self.normalize(self.data[index]))
@@ -104,7 +107,7 @@ class Images(Data):
             return self.normalize(self.data[index])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     images = Images()
     joints = Joints()
     print(images[0].shape)
@@ -120,9 +123,11 @@ if __name__ == '__main__':
     print(joints.random().shape)
 
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from logger import sarnn_image_postprocess
+
     plt.imshow(sarnn_image_postprocess(images[90]))
     plt.savefig("test.png")
     plt.close()

@@ -57,9 +57,9 @@ joint_bounds = torch.from_numpy(joint_bounds).to(device)
 print("data loaded")
 
 # load model
-model = CNNRNNLN(rec_dim=params["rec_dim"], joint_dim=8, feat_dim=params["feat_dim"]).to(
-    device
-)
+model = CNNRNNLN(
+    rec_dim=params["rec_dim"], joint_dim=8, feat_dim=params["feat_dim"]
+).to(device)
 
 # load weight
 ckpt = torch.load(weight_file, map_location=device)

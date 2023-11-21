@@ -17,6 +17,39 @@ from typing import Optional, Literal
 
 models = ["sarnn", "cnnrnn", "cnnrnnln", "caebn"]
 
+models_description = {
+    "sarnn": "Spatial Attention RNN",
+    "cnnrnn": "CNN + RNN",
+    "cnnrnnln": "CNN + RNN + LayerNorm",
+    "caebn": "CNN + AE + BatchNorm",
+}
+
+models_io = {
+    "sarnn": {
+        "input": ["i.image", "i.joint", "i.state_h", "i.state_c"],
+        "output": [
+            "o.image",
+            "o.joint",
+            "o.enc_pts",
+            "o.dec_pts",
+            "o.state_h",
+            "o.state_c",
+        ],
+    },
+    "cnnrnn": {
+        "input": ["i.image", "i.joint", "i.state_h", "i.state_c"],
+        "output": ["o.image", "o.joint", "o.state_h", "o.state_c"],
+    },
+    "cnnrnnln": {
+        "input": ["i.image", "i.joint", "i.state_h", "i.state_c"],
+        "output": ["o.image", "o.joint", "o.state_h", "o.state_c"],
+    },
+    "caebn": {
+        "input": ["i.image"],
+        "output": ["o.image"],
+    },
+}
+
 
 def infer(
     model: Literal["sarnn", "cnnrnn", "cnnrnnln", "caebn"] = "sarnn",
@@ -39,7 +72,7 @@ def infer(
             engine = load_engine(engine_name)
         else:
             progress_logger(0.1, "building engine, this may take a while")
-            engine = build_engine(onnx_name, engine_name, precision=precision)
+            engine = build_engine(model, onnx_name, engine_name, precision=precision)
     else:
         model_type = path.splitext(model_path)[1]
         if model_type == ".onnx":
@@ -49,7 +82,9 @@ def infer(
                 engine = load_engine(engine_name)
             else:
                 progress_logger(0.1, "building engine, this may take a while")
-                engine = build_engine(model_path, engine_name, precision=precision)
+                engine = build_engine(
+                    model, model_path, engine_name, precision=precision
+                )
         elif model_type == ".trt":
             engine = load_engine(model_path)
         else:
@@ -74,17 +109,24 @@ def infer(
     if measure_time:
         time_shower = TimeResultShower()
     inference_shower = InferenceResultShower(
+        model=model,
         image_postprocess=sarnn_image_postprocess,
-        joint_postprocess=joints.denormalize,
+        joint_postprocess=joints.denormalize
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]
+        else lambda x: x,
     )
-
     # warmup
     progress_logger(0.4, f"warming up {warmup_iter} loops")
     for _ in range(warmup_iter):
         inputs[input_names["i.image"]].host = images.random()
-        inputs[input_names["i.joint"]].host = joints.random()
-        inputs[input_names["i.state_h"]].host = np.random.random(50).astype(np_dtype)
-        inputs[input_names["i.state_c"]].host = np.random.random(50).astype(np_dtype)
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            inputs[input_names["i.joint"]].host = joints.random()
+            inputs[input_names["i.state_h"]].host = np.random.random(50).astype(
+                np_dtype
+            )
+            inputs[input_names["i.state_c"]].host = np.random.random(50).astype(
+                np_dtype
+            )
         do_inference_v2(
             context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream
         )
@@ -99,9 +141,10 @@ def infer(
     n_loop = len(images)
     for loop_ct in range(n_loop):
         inputs[input_names["i.image"]].host = images[loop_ct]
-        inputs[input_names["i.joint"]].host = joints[loop_ct]
-        inputs[input_names["i.state_h"]].host = lstm_state_h
-        inputs[input_names["i.state_c"]].host = lstm_state_c
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            inputs[input_names["i.joint"]].host = joints[loop_ct]
+            inputs[input_names["i.state_h"]].host = lstm_state_h
+            inputs[input_names["i.state_c"]].host = lstm_state_c
 
         # inference
         t1 = time.perf_counter()
@@ -115,19 +158,23 @@ def infer(
         # postprocess
         if measure_time:
             time_shower.append(elapsed)
+        empty = np.zeros(0, dtype=np_dtype)
         inference_shower.append(
             images[loop_ct],
             result[output_names["o.image"]],
-            joints[loop_ct],
-            result[output_names["o.joint"]],
-            result[output_names["o.enc_pts"]],
-            result[output_names["o.dec_pts"]],
+            joints[loop_ct] if model in ["sarnn", "cnnrnn", "cnnrnnln"] else empty,
+            result[output_names["o.joint"]]
+            if model in ["sarnn", "cnnrnn", "cnnrnnln"]
+            else empty,
+            result[output_names["o.enc_pts"]] if model in ["sarnn"] else empty,
+            result[output_names["o.dec_pts"]] if model in ["sarnn"] else empty,
             elapsed,
         )
 
         # update lstm state
-        lstm_state_h = result[output_names["o.state_h"]].copy()
-        lstm_state_c = result[output_names["o.state_c"]].copy()
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            lstm_state_h = result[output_names["o.state_h"]].copy()
+            lstm_state_c = result[output_names["o.state_c"]].copy()
 
     progress_logger(0.6, "collecting result")
 
