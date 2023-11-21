@@ -4,6 +4,7 @@ utilities for ndarray
 import numpy as np
 from typing import Tuple
 
+
 def normalize(
     x: np.ndarray,
     input_range: Tuple[float, float] = (0.0, 255.0),

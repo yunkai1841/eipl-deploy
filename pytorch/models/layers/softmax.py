@@ -19,7 +19,9 @@ def create_position_encoding(
         )
     else:
         pos_x, pos_y = np.meshgrid(
-            np.linspace(0, height - 1, height), np.linspace(0, width - 1, width), indexing="xy"
+            np.linspace(0, height - 1, height),
+            np.linspace(0, width - 1, width),
+            indexing="xy",
         )
 
     if data_format == "channels_first":

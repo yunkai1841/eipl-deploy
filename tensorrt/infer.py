@@ -27,7 +27,14 @@ models_description = {
 models_io = {
     "sarnn": {
         "input": ["i.image", "i.joint", "i.state_h", "i.state_c"],
-        "output": ["o.image", "o.joint", "o.enc_pts", "o.dec_pts", "o.state_h", "o.state_c"],
+        "output": [
+            "o.image",
+            "o.joint",
+            "o.enc_pts",
+            "o.dec_pts",
+            "o.state_h",
+            "o.state_c",
+        ],
     },
     "cnnrnn": {
         "input": ["i.image", "i.joint", "i.state_h", "i.state_c"],
@@ -75,7 +82,9 @@ def infer(
                 engine = load_engine(engine_name)
             else:
                 progress_logger(0.1, "building engine, this may take a while")
-                engine = build_engine(model, model_path, engine_name, precision=precision)
+                engine = build_engine(
+                    model, model_path, engine_name, precision=precision
+                )
         elif model_type == ".trt":
             engine = load_engine(model_path)
         else:
@@ -102,7 +111,9 @@ def infer(
     inference_shower = InferenceResultShower(
         model=model,
         image_postprocess=sarnn_image_postprocess,
-        joint_postprocess=joints.denormalize if model in ["sarnn", "cnnrnn", "cnnrnnln"] else lambda x: x,
+        joint_postprocess=joints.denormalize
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]
+        else lambda x: x,
     )
     # warmup
     progress_logger(0.4, f"warming up {warmup_iter} loops")
@@ -110,8 +121,12 @@ def infer(
         inputs[input_names["i.image"]].host = images.random()
         if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
             inputs[input_names["i.joint"]].host = joints.random()
-            inputs[input_names["i.state_h"]].host = np.random.random(50).astype(np_dtype)
-            inputs[input_names["i.state_c"]].host = np.random.random(50).astype(np_dtype)
+            inputs[input_names["i.state_h"]].host = np.random.random(50).astype(
+                np_dtype
+            )
+            inputs[input_names["i.state_c"]].host = np.random.random(50).astype(
+                np_dtype
+            )
         do_inference_v2(
             context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream
         )
@@ -148,7 +163,9 @@ def infer(
             images[loop_ct],
             result[output_names["o.image"]],
             joints[loop_ct] if model in ["sarnn", "cnnrnn", "cnnrnnln"] else empty,
-            result[output_names["o.joint"]] if model in ["sarnn", "cnnrnn", "cnnrnnln"] else empty,
+            result[output_names["o.joint"]]
+            if model in ["sarnn", "cnnrnn", "cnnrnnln"]
+            else empty,
             result[output_names["o.enc_pts"]] if model in ["sarnn"] else empty,
             result[output_names["o.dec_pts"]] if model in ["sarnn"] else empty,
             elapsed,

@@ -65,9 +65,7 @@ def load_engine(engine_file_path):
 
 
 class Int8Calibrator(trt.IInt8EntropyCalibrator2):
-    def __init__(
-        self, model: str = "sarnn", rm_cache: bool = False
-    ):
+    def __init__(self, model: str = "sarnn", rm_cache: bool = False):
         super(Int8Calibrator, self).__init__()
         self.model = model
         calibration_data_dir = f"calibration/{model}"

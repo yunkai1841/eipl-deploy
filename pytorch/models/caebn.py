@@ -9,6 +9,7 @@ import torch.nn as nn
 
 from .layers.unflatten import Unflatten
 
+
 class BasicCAEBN(nn.Module):
     """BasicCAEBN"""
 
@@ -120,4 +121,3 @@ class CAEBN(nn.Module):
 
     def forward(self, x):
         return self.decoder(self.encoder(x))
-

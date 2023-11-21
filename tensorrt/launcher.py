@@ -4,7 +4,9 @@ import os
 from infer import infer
 
 
-def infer_gradio(model, precision, index, warmup_iter, force_build_engine, progress=gr.Progress()):
+def infer_gradio(
+    model, precision, index, warmup_iter, force_build_engine, progress=gr.Progress()
+):
     # remove cached result before inference
     if os.path.exists("result.mp4"):
         os.remove("result.mp4")
@@ -24,7 +26,11 @@ def infer_gradio(model, precision, index, warmup_iter, force_build_engine, progr
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--share", action="store_true", help="share the demo on internet, jetson(arm64) is not supported")
+    args.add_argument(
+        "--share",
+        action="store_true",
+        help="share the demo on internet, jetson(arm64) is not supported",
+    )
     args = args.parse_args()
 
     demo = gr.Interface(
