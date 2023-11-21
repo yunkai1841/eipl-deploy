@@ -132,8 +132,8 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
     """
     Generate calibration data.
     """
-    onnx_name = f"{model}.onnx"
-    engine_name = f"{model}_fp32.trt"
+    onnx_name = f"models/{model}.onnx"
+    engine_name = f"models/{model}_fp32.trt"
     if path.exists(engine_name):
         engine = load_engine(engine_name)
     else:

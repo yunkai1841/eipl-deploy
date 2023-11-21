@@ -1,9 +1,13 @@
 from models.loader import export_onnx
+import os
 
-export_onnx("sarnn", "sarnn.onnx")
-export_onnx("cnnrnn", "cnnrnn.onnx")
-export_onnx("cnnrnnln", "cnnrnnln.onnx")
-export_onnx("caebn", "caebn.onnx")
+save_dir = os.path.join(os.path.dirname(__file__), "../models")
+
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+
+for model in ["sarnn", "cnnrnn", "cnnrnnln", "caebn"]:
+    export_onnx(model, os.path.join(save_dir, f"{model}.onnx"))
 
 # visualize onnx
 # import netron

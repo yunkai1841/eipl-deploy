@@ -65,8 +65,8 @@ def infer(
     progress_logger: Optional[object] = lambda _, txt: print(txt),
 ):
     if model_path is None:
-        onnx_name = f"{model}.onnx"
-        engine_name = f"{model}_{precision}.trt"
+        onnx_name = f"models/{model}.onnx"
+        engine_name = f"models/{model}_{precision}.trt"
         if path.exists(engine_name) and not force_build_engine:
             progress_logger(0.1, "loading existing engine")
             engine = load_engine(engine_name)
@@ -194,7 +194,9 @@ def infer(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--model", choices=models, default="sarnn")
     parser.add_argument("--int8", action="store_true")
     parser.add_argument("--fp16", action="store_true")
@@ -215,6 +217,14 @@ if __name__ == "__main__":
         "--gen-calibration-data",
         action="store_true",
         help="generate calibration data for int8 mode",
+    )
+    # model description + \n
+    parser.description = "\n".join(
+        [
+            f"{model}: {models_description[model]}"
+            for model in models
+            if model in models_description
+        ]
     )
     args = parser.parse_args()
 
