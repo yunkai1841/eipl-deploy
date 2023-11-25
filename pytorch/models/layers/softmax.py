@@ -65,6 +65,8 @@ class SpatialSoftmax(nn.Module):
 
         # flatten, apply softmax
         logit = x.reshape(batch_size, channels, -1)
+        # avoid overflow
+        logit = logit - torch.max(logit, dim=-1, keepdim=True)[0]
         att_map = torch.softmax(logit / self.temperature, dim=-1)
 
         # compute expectation

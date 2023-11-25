@@ -203,6 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-index", type=int, default=0)
     parser.add_argument("--sleep-after-warmup", type=float, default=0.0)
     parser.add_argument("--power", action="store_true")
+    parser.add_argument("--model-path", type=str, default=None)
     parser.add_argument(
         "--clear-result",
         action="store_true",
@@ -259,4 +260,5 @@ if __name__ == "__main__":
         dataset_index=args.dataset_index,
         sleep_after_warmup=args.sleep_after_warmup,
         force_build_engine=args.force_build,
+        model_path=args.model_path,
     )
