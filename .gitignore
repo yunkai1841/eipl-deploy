@@ -4,6 +4,8 @@ result/
 temp/
 cache/
 calibration/
+models/
+flagged/
 
 # dump files
 *.csv

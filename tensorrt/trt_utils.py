@@ -85,7 +85,7 @@ class Int8Calibrator(trt.IInt8EntropyCalibrator2):
             "i.joint": (8,),
             "i.state_h": (50,),
             "i.state_c": (50,),
-        }
+        } if model in ["sarnn", "cnnrnn", "cnnrnnln"] else {"i.image": (3, 128, 128)}
         self.names = set(self.input_shapes.keys())
         self.host_device_mem_dic = {}
         for name in self.names:
@@ -137,7 +137,7 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
     if path.exists(engine_name):
         engine = load_engine(engine_name)
     else:
-        engine = build_engine(onnx_name, engine_name, precision="fp32")
+        engine = build_engine(model, onnx_name, engine_name, precision="fp32")
 
     context = engine.create_execution_context()
     inputs, outputs, bindings, stream, input_names, output_names = allocate_buffers(
