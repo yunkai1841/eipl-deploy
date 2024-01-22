@@ -1,5 +1,7 @@
+![logo](https://raw.githubusercontent.com/ogata-lab/eipl-docs/b50ecbbbc026474fa385636b73fd9ce2dcd8381a/top/resources/logo.svg)
+
 # eipl-deploy
-Minimized ogata-lab/eipl code, which aim to deploy on edge devices
+This repository is optimized inference code for [eipl](https://github.com/ogata-lab/eipl/)
 
 ## Tested environment
 - Jetson Xavier NX
@@ -12,6 +14,13 @@ Install python packages using the following command.
 pip install -r requirements_jetson.txt
 ```
 
+Install packages for tensorrt inference.
+You need to install those packages with sudo.
+```bash
+sudo apt install python3-libnvinfer python3-libnvinfer-dev ffmpeg
+sudo pip install jetson-stats
+```
+
 Download sample data and pretrained weights using the following command.
 ```bash
 python scripts/downloader.py
@@ -21,4 +30,5 @@ python scripts/downloader.py
 - SARNN
 - CNNRNN
 - CNNRNNLN
-- CAELN (no RNN)
+- **Experimental** CAEBN (no RNN)
+  - Do not work with Int8 TensorRT inference
