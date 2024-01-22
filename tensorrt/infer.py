@@ -72,7 +72,13 @@ def infer(
             engine = load_engine(engine_name)
         else:
             progress_logger(0.1, "building engine, this may take a while")
-            engine = build_engine(model, onnx_name, engine_name, precision=precision)
+            engine = build_engine(
+                model,
+                onnx_name,
+                engine_name,
+                precision=precision,
+                rm_cache=force_build_engine,
+            )
     else:
         model_type = path.splitext(model_path)[1]
         if model_type == ".onnx":
@@ -83,7 +89,11 @@ def infer(
             else:
                 progress_logger(0.1, "building engine, this may take a while")
                 engine = build_engine(
-                    model, model_path, engine_name, precision=precision
+                    model,
+                    model_path,
+                    engine_name,
+                    precision=precision,
+                    rm_cache=force_build_engine,
                 )
         elif model_type == ".trt":
             engine = load_engine(model_path)

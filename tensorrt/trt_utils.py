@@ -1,7 +1,9 @@
 import tensorrt as trt
 import numpy as np
 from os import path, makedirs, remove
-import random
+import shutil
+
+# import random
 
 from data_utils import Joints, Images
 from common import HostDeviceMem, allocate_buffers, do_inference_v2
@@ -12,7 +14,9 @@ LOG_LEVEL = trt.Logger.INFO
 # LOG_LEVEL = trt.Logger.VERBOSE # for debug
 
 
-def build_engine(model, onnx_file_path, engine_file_path, precision="fp32"):
+def build_engine(
+    model, onnx_file_path, engine_file_path, precision="fp32", rm_cache=False
+):
     """
     Build TensorRT engine from ONNX file and save it.
     """
@@ -40,8 +44,9 @@ def build_engine(model, onnx_file_path, engine_file_path, precision="fp32"):
             raise RuntimeError(
                 "INT8 mode requested on a platform that doesn't support it!"
             )
+        config.set_flag(trt.BuilderFlag.FP16)
         config.set_flag(trt.BuilderFlag.INT8)
-        config.int8_calibrator = Int8Calibrator(model=model)
+        config.int8_calibrator = Int8Calibrator(model=model, rm_cache=rm_cache)
     # config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 20) # 1 MiB
     serialized_engine = builder.build_serialized_network(network, config)
     with open(engine_file_path, "wb") as f:
@@ -72,6 +77,8 @@ class Int8Calibrator(trt.IInt8EntropyCalibrator2):
         self.cache_file = path.join(calibration_data_dir, "calibration.cache")
         if rm_cache and path.exists(self.cache_file):
             remove(self.cache_file)
+        if rm_cache and path.exists(calibration_data_dir):
+            shutil.rmtree(calibration_data_dir)
         if not path.exists(calibration_data_dir):
             gen_calibration_data(model=model, dataset_index=0)
         self.images = np.load(f"{calibration_data_dir}/image.npy")
@@ -80,12 +87,16 @@ class Int8Calibrator(trt.IInt8EntropyCalibrator2):
             self.state_h = np.load(f"{calibration_data_dir}/state_h.npy")
             self.state_c = np.load(f"{calibration_data_dir}/state_c.npy")
         self.batch_size = 1
-        self.input_shapes = {
-            "i.image": (3, 128, 128),
-            "i.joint": (8,),
-            "i.state_h": (50,),
-            "i.state_c": (50,),
-        } if model in ["sarnn", "cnnrnn", "cnnrnnln"] else {"i.image": (3, 128, 128)}
+        self.input_shapes = (
+            {
+                "i.image": (3, 128, 128),
+                "i.joint": (8,),
+                "i.state_h": (50,),
+                "i.state_c": (50,),
+            }
+            if model in ["sarnn", "cnnrnn", "cnnrnnln"]
+            else {"i.image": (3, 128, 128)}
+        )
         self.names = set(self.input_shapes.keys())
         self.host_device_mem_dic = {}
         for name in self.names:
@@ -153,8 +164,10 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
     lstm_state_c = np.zeros(50, order="C").astype(np_dtype)
 
     n_loop = len(images)
-    save_index = random.sample(range(10, n_loop - 10), 10)
-    print(f"calibration data index: {save_index}")
+    # ? How to choose calibration data keeping the distribution of the whole dataset?
+    # ? or just use all data
+    # save_index = random.sample(range(10, n_loop - 10), 10)
+    # print(f"calibration data index: {save_index}")
     save_data = {
         "image": [],
         "joint": [],
@@ -162,12 +175,12 @@ def gen_calibration_data(model="sarnn", dataset_index=0):
         "state_c": [],
     }
     for loop_ct in range(n_loop):
-        if loop_ct in save_index:
-            save_data["image"].append(images[loop_ct])
-            if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
-                save_data["joint"].append(joints[loop_ct])
-                save_data["state_h"].append(lstm_state_h)
-                save_data["state_c"].append(lstm_state_c)
+        # if loop_ct in save_index:
+        save_data["image"].append(images[loop_ct])
+        if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            save_data["joint"].append(joints[loop_ct])
+            save_data["state_h"].append(lstm_state_h)
+            save_data["state_c"].append(lstm_state_c)
 
         inputs[input_names["i.image"]].host = images[loop_ct]
         if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
