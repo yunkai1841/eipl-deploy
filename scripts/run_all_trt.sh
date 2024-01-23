@@ -29,3 +29,12 @@ for model in "${models[@]}"; do
         mv $result $result_dir/int8
     done
 done
+
+# make summary csv file
+echo "model,precision,time" > result/result-summary.csv
+for model in "${models[@]}"; do
+    for prec in "${precision[@]}"; do
+        time=$(cat result/$model/$prec/time.txt | grep "avg inference time" | awk -F "=" '{print $2}')
+        echo "$model,$prec,$time" >> result/result-summary.csv
+    done
+done
