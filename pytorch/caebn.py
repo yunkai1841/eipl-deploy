@@ -72,6 +72,13 @@ else:
 
 
 def inference():
+    # warm up
+    for loop_ct in range(3):
+        img_t = images[loop_ct].unsqueeze(0)
+        img_t = img_t / 255.0
+        with torch.inference_mode():
+            model(img_t)
+
     for loop_ct in range(nloop):
         # prepare data
         img_t = images[loop_ct].unsqueeze(0)

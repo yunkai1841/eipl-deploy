@@ -81,6 +81,17 @@ else:
 
 def inference():
     state = None
+    # warm up
+    for loop_ct in range(3):
+        img_t = images[loop_ct].unsqueeze(0)
+        img_t = img_t / 255.0
+        joint_t = joints[loop_ct].unsqueeze(0)
+        # joint_t = normalize(joint_t, joint_bounds, minmax)
+        joint_t = (joint_t - joint_bounds[0]) / (joint_bounds[1] - joint_bounds[0])
+        with torch.inference_mode():
+            _, _, _, _, state = model(img_t, joint_t, state)
+
+    state = None
     for loop_ct in range(nloop):
         # prepare data
         img_t = images[loop_ct].unsqueeze(0)
