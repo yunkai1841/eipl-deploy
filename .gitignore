@@ -13,6 +13,7 @@ flagged/
 *.mp4
 *.txt
 *.nsys-rep
+*.npy
 
 # Model binary
 *.onnx

@@ -233,6 +233,11 @@ class InferenceResultShower(ResultShower):
             ]
         )
 
+    def save_numpy(self, image_save: str, joint_save: str):
+        np.save(image_save, np.array([d[1] for d in self.data]))
+        np.save(joint_save, np.array([d[2] for d in self.data]))
+        
+
     def plot(self, show: bool = True, save: Optional[str] = None):
         import matplotlib
 

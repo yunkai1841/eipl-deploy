@@ -62,6 +62,8 @@ def infer(
     measure_time: bool = True,
     show_result: bool = False,  # use false in server
     force_build_engine: bool = False,
+    save_output_video: bool = True,
+    save_output_numpy: bool = False,
     progress_logger: Optional[object] = lambda _, txt: print(txt),
 ):
     if model_path is None:
@@ -199,8 +201,12 @@ def infer(
         time_shower.save_csv(save="time.csv")
         time_shower.plot(show=show_result, save="time.png")
 
-    progress_logger(0.7, "encoding result video, this may take a while")
-    inference_shower.plot(show=show_result, save="result.mp4")
+    if save_output_numpy:
+        # progress_logger(0.7, "saving output numpy")
+        inference_shower.save_numpy(image_save="image.npy", joint_save="joint.npy")
+    if save_output_video:
+        progress_logger(0.7, "encoding result video, this may take a while")
+        inference_shower.plot(show=show_result, save="result.mp4")
 
 
 if __name__ == "__main__":
@@ -214,6 +220,7 @@ if __name__ == "__main__":
     parser.add_argument("--sleep-after-warmup", type=float, default=0.0)
     parser.add_argument("--power", action="store_true")
     parser.add_argument("--model-path", type=str, default=None)
+    parser.add_argument("--save-output", action="store_true")
     parser.add_argument(
         "--clear-result",
         action="store_true",
@@ -271,4 +278,5 @@ if __name__ == "__main__":
         sleep_after_warmup=args.sleep_after_warmup,
         force_build_engine=args.force_build,
         model_path=args.model_path,
+        save_output_numpy=args.save_output,
     )
