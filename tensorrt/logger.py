@@ -240,6 +240,7 @@ class InferenceResultShower(ResultShower):
 
     def plot(self, show: bool = True, save: Optional[str] = None):
         import matplotlib
+        import sklearn.metrics as metrics
 
         if not show:
             matplotlib.use("Agg")
@@ -299,7 +300,17 @@ class InferenceResultShower(ResultShower):
                 for joint_idx in range(8):
                     ax[2].plot(np.arange(i + 1), pred_joint[: i + 1, joint_idx])
                 ax[2].set_xlabel("Step")
-                ax[2].set_title("Joint angles")
+                if i < T - 1:
+                    # print mse
+                    # input[t+1] is the answer for pred[t]
+                    mse = metrics.mean_squared_error(
+                        input_joint[i+1],
+                        pred_joint[i],
+                    )
+                    # show x.xxe-xx
+                    ax[2].set_title(f"Joint angles\nmse={mse:.2e}")
+                else:
+                    ax[2].set_title(f"Joint angles\nmse=---")
 
         T = len(self.data)
         ani = anim.FuncAnimation(fig, anim_update, interval=100, frames=T)
