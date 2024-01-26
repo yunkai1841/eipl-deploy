@@ -35,7 +35,7 @@ echo "model,precision,time,mse" > result/result-summary.csv
 for model in "${models[@]}"; do
     for prec in "${precision[@]}"; do
         time=$(cat result/$model/$prec/time.txt | grep "avg inference time" | awk -F "=" '{print $2}')
-        mse=$(cat result/$model/$prec/result.txt | grep "MSE of joint angle" | awk -F "=" '{print $2}')
+        mse=$(cat result/$model/$prec/result.txt | grep "^MSE of joint angle" | awk -F "=" '{print $2}')
         echo "$model,$prec,$time,$mse" >> result/result-summary.csv
     done
 done

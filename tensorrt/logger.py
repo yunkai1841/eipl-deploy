@@ -237,17 +237,25 @@ class InferenceResultShower(ResultShower):
         import sklearn.metrics as metrics
 
         jointmses = []
-        for i in range(len(self.data) - 1):
-            input_joint = self.data[i + 1][6]
-            pred_joint = self.data[i][2]
-            mse = metrics.mean_squared_error(input_joint, pred_joint)
-            jointmses.append(mse)
-        format_str = f"""
+        if self.model in ["sarnn", "cnnrnn", "cnnrnnln"]:
+            for i in range(len(self.data) - 1):
+                input_joint = self.data[i + 1][6]
+                pred_joint = self.data[i][2]
+                mse = metrics.mean_squared_error(input_joint, pred_joint)
+                jointmses.append(mse)
+            format_str = f"""
 Inference Result==========================
 total loop={len(self.data)}
 MSE of joint angle={sum(jointmses) / len(jointmses)}
 MAX MSE of joint angle={max(jointmses)}
 MIN MSE of joint angle={min(jointmses)}
+==========================================
+"""
+        else:
+            format_str = f"""
+Inference Result==========================
+total loop={len(self.data)}
+MSE of joint angle=---
 ==========================================
 """
         if show:
