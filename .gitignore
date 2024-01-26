@@ -12,6 +12,7 @@ flagged/
 *.png
 *.mp4
 *.txt
+!requirements*.txt
 *.nsys-rep
 *.npy
 

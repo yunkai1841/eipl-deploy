@@ -39,15 +39,15 @@ def build_engine(
                 "FP16 mode requested on a platform that doesn't support it!"
             )
         config.set_flag(trt.BuilderFlag.FP16)
-    elif precision == "int8":
+    elif precision == "int8" or precision == "best":
         if not builder.platform_has_fast_int8:
             raise RuntimeError(
                 "INT8 mode requested on a platform that doesn't support it!"
             )
-        config.set_flag(trt.BuilderFlag.FP16)
         config.set_flag(trt.BuilderFlag.INT8)
+        if precision == "best":
+            config.set_flag(trt.BuilderFlag.FP16)
         config.int8_calibrator = Int8Calibrator(model=model, rm_cache=rm_cache)
-    # config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 20) # 1 MiB
     serialized_engine = builder.build_serialized_network(network, config)
     with open(engine_file_path, "wb") as f:
         f.write(serialized_engine)

@@ -53,7 +53,7 @@ models_io = {
 
 def infer(
     model: Literal["sarnn", "cnnrnn", "cnnrnnln", "caebn"] = "sarnn",
-    precision: Literal["fp32", "fp16", "int8"] = "fp32",
+    precision: Literal["fp32", "fp16", "int8", "best"] = "fp32",
     dataset_index: int = 0,
     model_path: Optional[str] = None,
     warmup_iter: int = 1000,
@@ -207,7 +207,7 @@ def infer(
     if save_output_video:
         progress_logger(0.7, "encoding result video, this may take a while")
         inference_shower.plot(show=show_result, save="result.mp4")
-
+    inference_shower.summary(save="result.txt")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -216,11 +216,13 @@ if __name__ == "__main__":
     parser.add_argument("--model", choices=models, default="sarnn")
     parser.add_argument("--int8", action="store_true")
     parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--best", action="store_true")
     parser.add_argument("--dataset-index", type=int, default=0)
     parser.add_argument("--sleep-after-warmup", type=float, default=0.0)
     parser.add_argument("--power", action="store_true")
     parser.add_argument("--model-path", type=str, default=None)
     parser.add_argument("--save-output", action="store_true")
+    parser.add_argument("--no-video", action="store_true")
     parser.add_argument(
         "--clear-result",
         action="store_true",
@@ -255,12 +257,17 @@ if __name__ == "__main__":
             "time.csv",
             "time.png",
             "result.mp4",
+            "image.npy",
+            "joint.npy",
+            "result.txt",
         ]
         for file in result_files:
             if path.exists(file):
                 remove(file)
 
     precision = "fp32"
+    if args.best:
+        precision = "best"
     if args.int8:
         precision = "int8"
     elif args.fp16:
@@ -279,4 +286,5 @@ if __name__ == "__main__":
         force_build_engine=args.force_build,
         model_path=args.model_path,
         save_output_numpy=args.save_output,
+        save_output_video=not args.no_video,
     )

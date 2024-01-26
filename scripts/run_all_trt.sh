@@ -5,7 +5,7 @@ main_script=tensorrt/infer.py
 
 models=("sarnn" "cnnrnn" "cnnrnnln" "caebn")
 precision=("fp32" "fp16" "int8")
-results=("result.mp4" "time.csv" "time.txt" "time.png")
+results=("result.mp4" "result.txt" "time.csv" "time.txt" "time.png")
 
 for model in "${models[@]}"; do
     result_dir=result/$model
@@ -31,10 +31,11 @@ for model in "${models[@]}"; do
 done
 
 # make summary csv file
-echo "model,precision,time" > result/result-summary.csv
+echo "model,precision,time,mse" > result/result-summary.csv
 for model in "${models[@]}"; do
     for prec in "${precision[@]}"; do
         time=$(cat result/$model/$prec/time.txt | grep "avg inference time" | awk -F "=" '{print $2}')
-        echo "$model,$prec,$time" >> result/result-summary.csv
+        mse=$(cat result/$model/$prec/result.txt | grep "MSE of joint angle" | awk -F "=" '{print $2}')
+        echo "$model,$prec,$time,$mse" >> result/result-summary.csv
     done
 done

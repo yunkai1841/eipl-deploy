@@ -233,10 +233,32 @@ class InferenceResultShower(ResultShower):
             ]
         )
 
+    def summary(self, show: bool = True, save: Optional[str] = None):
+        import sklearn.metrics as metrics
+
+        jointmses = []
+        for i in range(len(self.data) - 1):
+            input_joint = self.data[i + 1][6]
+            pred_joint = self.data[i][2]
+            mse = metrics.mean_squared_error(input_joint, pred_joint)
+            jointmses.append(mse)
+        format_str = f"""
+Inference Result==========================
+total loop={len(self.data)}
+MSE of joint angle={sum(jointmses) / len(jointmses)}
+MAX MSE of joint angle={max(jointmses)}
+MIN MSE of joint angle={min(jointmses)}
+==========================================
+"""
+        if show:
+            print(format_str)
+        if save is not None:
+            with open(save, "w") as f:
+                f.write(format_str)
+
     def save_numpy(self, image_save: str, joint_save: str):
         np.save(image_save, np.array([d[1] for d in self.data]))
         np.save(joint_save, np.array([d[2] for d in self.data]))
-        
 
     def plot(self, show: bool = True, save: Optional[str] = None):
         import matplotlib
@@ -304,7 +326,7 @@ class InferenceResultShower(ResultShower):
                     # print mse
                     # input[t+1] is the answer for pred[t]
                     mse = metrics.mean_squared_error(
-                        input_joint[i+1],
+                        input_joint[i + 1],
                         pred_joint[i],
                     )
                     # show x.xxe-xx
