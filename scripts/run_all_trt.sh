@@ -5,7 +5,7 @@ main_script=tensorrt/infer.py
 
 models=("sarnn" "cnnrnn" "cnnrnnln" "caebn")
 precision=("fp32" "fp16" "int8")
-results=("result.mp4" "result.txt" "time.csv" "time.txt" "time.png")
+results=("power.csv" "power.png" "power.txt")
 
 for model in "${models[@]}"; do
     result_dir=result/$model
@@ -31,11 +31,12 @@ for model in "${models[@]}"; do
 done
 
 # make summary csv file
-echo "model,precision,time,mse" > result/result-summary.csv
+echo "model,precision,avg-power,total-energy,energy-per-loop" > result/power-summary.csv
 for model in "${models[@]}"; do
     for prec in "${precision[@]}"; do
-        time=$(cat result/$model/$prec/time.txt | grep "avg inference time" | awk -F "=" '{print $2}')
-        mse=$(cat result/$model/$prec/result.txt | grep "^MSE of joint angle" | awk -F "=" '{print $2}')
-        echo "$model,$prec,$time,$mse" >> result/result-summary.csv
+        avg=$(cat result/$model/$prec/power.txt | grep "^avg power" | awk -F "=" '{print $2}')
+        energy=$(cat result/$model/$prec/power.txt | grep "^total energy" | awk -F "=" '{print $2}')
+        epl=$(cat result/$model/$prec/power.txt | grep "^energy per loop" | awk -F "=" '{print $2}')
+        echo "$model,$prec,$avg,$energy,$epl" >> result/power-summary.csv
     done
 done

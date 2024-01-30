@@ -151,7 +151,9 @@ def infer(
         power_logger.start_measure()
 
     n_loop = len(images)
-    for loop_ct in range(n_loop):
+    pre_t = time.perf_counter()
+    for loop in range(10000):
+        loop_ct = loop % n_loop
         inputs[input_names["i.image"]].host = images[loop_ct]
         if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
             inputs[input_names["i.joint"]].host = joints[loop_ct]
@@ -187,27 +189,29 @@ def infer(
         if model in ["sarnn", "cnnrnn", "cnnrnnln"]:
             lstm_state_h = result[output_names["o.state_h"]].copy()
             lstm_state_c = result[output_names["o.state_c"]].copy()
+    post_t = time.perf_counter()
+    print("total time:{}".format(post_t - pre_t))
 
     progress_logger(0.6, "collecting result")
 
     if measure_power:
         power_logger.stop_measure()
-        power_logger.summary(save="power.txt")
+        power_logger.summary(save="power.txt", latency_frame = (post_t - pre_t) / 10000)
         power_logger.save_csv(save="power.csv")
         power_logger.plot(show=show_result, save="power.png")
 
-    if measure_time:
-        time_shower.summary(save="time.txt")
-        time_shower.save_csv(save="time.csv")
-        time_shower.plot(show=show_result, save="time.png")
+    # if measure_time:
+    #     time_shower.summary(save="time.txt")
+    #     time_shower.save_csv(save="time.csv")
+    #     time_shower.plot(show=show_result, save="time.png")
 
-    if save_output_numpy:
-        # progress_logger(0.7, "saving output numpy")
-        inference_shower.save_numpy(image_save="image.npy", joint_save="joint.npy")
-    if save_output_video:
-        progress_logger(0.7, "encoding result video, this may take a while")
-        inference_shower.plot(show=show_result, save="result.mp4")
-    inference_shower.summary(save="result.txt")
+    # if save_output_numpy:
+    #     # progress_logger(0.7, "saving output numpy")
+    #     inference_shower.save_numpy(image_save="image.npy", joint_save="joint.npy")
+    # if save_output_video:
+    #     progress_logger(0.7, "encoding result video, this may take a while")
+    #     inference_shower.plot(show=show_result, save="result.mp4")
+    # inference_shower.summary(save="result.txt")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -219,7 +223,6 @@ if __name__ == "__main__":
     parser.add_argument("--best", action="store_true")
     parser.add_argument("--dataset-index", type=int, default=0)
     parser.add_argument("--sleep-after-warmup", type=float, default=0.0)
-    parser.add_argument("--power", action="store_true")
     parser.add_argument("--model-path", type=str, default=None)
     parser.add_argument("--save-output", action="store_true")
     parser.add_argument("--no-video", action="store_true")
@@ -280,7 +283,7 @@ if __name__ == "__main__":
     infer(
         args.model,
         precision,
-        measure_power=args.power,
+        measure_power=True,
         dataset_index=args.dataset_index,
         sleep_after_warmup=args.sleep_after_warmup,
         force_build_engine=args.force_build,

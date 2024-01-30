@@ -129,20 +129,24 @@ class PowerLogger(ResultShower):
         self.stop_event.set()
         self.measure_thread.join()
 
-    def summary(self, show: bool = True, save: Optional[str] = None):
+    def summary(self, latency_frame: float, show: bool = True, save: Optional[str] = None):
         if len(self.data) == 0:
             print("No data")
             return
-        elapsed = self.data[-1][0] - self.data[0][0]
-        avg_power = sum([d[1] for d in self.data]) / len(self.data)
-        peak_power = max([d[1] for d in self.data])
-        min_power = min([d[1] for d in self.data])
+        data = self.data[3:]
+        elapsed = data[-1][0] - data[0][0]
+        avg_power = sum([d[1] for d in data]) / len(data)
+        peak_power = max([d[1] for d in data])
+        min_power = min([d[1] for d in data])
         format_str = f"""
 Power Result==============================
 elapsed time={elapsed}
 avg power={avg_power}
 peak power={peak_power}
 min power={min_power}
+total energy={avg_power * elapsed}
+total loop={elapsed / latency_frame}
+energy per loop={avg_power * latency_frame}
 ==========================================
 """
         if show:
@@ -220,18 +224,20 @@ class InferenceResultShower(ResultShower):
         input_image = self.image_postprocess(input_image.copy())
         pred_joint = self.joint_postprocess(pred_joint.copy())
         input_joint = self.joint_postprocess(input_joint.copy())
-        self.data.append(
-            [
-                now,
-                pred_image,
-                pred_joint,
-                enc_pts.copy(),
-                dec_pts.copy(),
-                input_image,
-                input_joint,
-                elapsed_time,
-            ]
-        )
+        enc_pts = enc_pts.copy()
+        dec_pts = dec_pts.copy()
+        # self.data.append(
+        #     [
+        #         now,
+        #         pred_image,
+        #         pred_joint,
+        #         enc_pts.copy(),
+        #         dec_pts.copy(),
+        #         input_image,
+        #         input_joint,
+        #         elapsed_time,
+        #     ]
+        # )
 
     def summary(self, show: bool = True, save: Optional[str] = None):
         import sklearn.metrics as metrics
