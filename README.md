@@ -26,6 +26,11 @@ Download sample data and pretrained weights using the following command.
 python scripts/downloader.py
 ```
 
+Convert pretrained weights to onnx format using the following command.
+```bash
+python pytorch/export_onnx.py
+```
+
 ## Supported Models
 - SARNN
 - CNNRNN
