@@ -7,7 +7,7 @@
 numpy==1.24.4
 torch @ https://developer.download.nvidia.cn/compute/redist/jp/v512/pytorch/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl#sha256=5112e2ef5051f1003ae2ffb545ae596377df66979d62a954d774f18009064dbe
 memory-profiler==0.61.0
-onnx==1.14.1
+onnx==1.15.0
 
 # for tensorrt
 cuda-python
