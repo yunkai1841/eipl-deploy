@@ -1,0 +1,19 @@
+{
+    "name": "TensorRT 8.6.1",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "runArgs": [
+        "--gpus", "all",
+        "--rm"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools-extension-pack",
+                "eamodio.gitlens",
+                "ms-python.python"
+            ]
+        }
+    }
+}
