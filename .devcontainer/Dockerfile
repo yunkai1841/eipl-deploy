@@ -45,6 +45,7 @@ RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=RELEASE \
 -D WITH_CUDNN=ON \
 -D OPENCV_DNN_CUDA=ON \
 -D CUDA_ARCH_BIN=${CUDA_ARCH_VERSION} \
+..
 RUN ninja && ninja install
 WORKDIR /root
 RUN rm -rf opencv_build

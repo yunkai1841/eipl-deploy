@@ -4,8 +4,7 @@
         "dockerfile": "Dockerfile"
     },
     "runArgs": [
-        "--gpus", "all",
-        "--rm"
+        "--gpus", "all"
     ],
     "customizations": {
         "vscode": {
