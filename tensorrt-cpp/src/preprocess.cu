@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/cudawarping.hpp>
 
 #include "NvInfer.h"
 #include "common/timer.h"
@@ -67,7 +68,7 @@ __global__ void resize_rgb_kernel(const uchar3 *input, uchar3 *output, int input
 int main()
 {
   // Load image
-  cv::Mat image = cv::imread("data/image.png", cv::IMREAD_COLOR);
+  cv::Mat image = cv::imread("data/image.jpg", cv::IMREAD_COLOR);
   if (image.empty())
   {
     std::cerr << "Failed to load image." << std::endl;
@@ -76,21 +77,26 @@ int main()
 
   // Preprocess image
   cv::Mat resized;
-  // bool useGPU = true;
-  // if (useGPU) {
-  //     TimerScope timer("Opencv GPU Preprocess");
-  //     cv::cuda::GpuMat gpuImage;
-  //     gpuImage.upload(image);
-  //     cv::cuda::GpuMat gpuResized;
-  //     cv::cuda::resize(gpuImage, gpuResized, cv::Size(224, 224));
-  //     gpuResized.download(resized);
-  // } else
   {
-    TimerScope timer("Preprocess");
+    cv::cuda::GpuMat gpuImage;
+    cv::cuda::GpuMat gpuResized;
+    gpuImage.upload(image);
+    for (int i = 0; i < 10; i++)
+    {
+      TimerScope timer("Opencv GPU Resize");
+      cv::cuda::resize(gpuImage, gpuResized, cv::Size(224, 224));
+    }
+    gpuResized.download(resized);
+  }
+  // cv::imshow("Resized OpenCV GPU", resized);
+  // cv::waitKey(0);
+  for (int i = 0; i < 10; i++)
+  {
+    TimerScope timer("Opencv CPU Preprocess");
     cv::resize(image, resized, cv::Size(224, 224));
   }
-  cv::imshow("Resized", resized);
-  cv::waitKey(0);
+  // cv::imshow("Resized OpenCV CPU", resized);
+  // cv::waitKey(0);
 
   // Preprocess image with my kernel
   cv::Mat image2 = cv::imread("data/image.png", cv::IMREAD_COLOR);
@@ -104,6 +110,7 @@ int main()
 
   dim3 block(32, 32);
   dim3 grid((resized2.cols + block.x - 1) / block.x, (resized2.rows + block.y - 1) / block.y);
+  for (int i = 0; i < 10; i++)
   {
     TimerScope timer("Preprocess with my kernel");
     resize_rgb_kernel<<<grid, block>>>(d_input, d_output, image2.rows, image2.cols, resized2.rows, resized2.cols);
@@ -114,6 +121,6 @@ int main()
   CUDA_CHECK(cudaFree(d_input));
   CUDA_CHECK(cudaFree(d_output));
 
-  cv::imshow("Resized with my kernel", resized2);
-  cv::waitKey(0);
+  // cv::imshow("Resized with my kernel", resized2);
+  // cv::waitKey(0);
 }
