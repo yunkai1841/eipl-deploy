@@ -7,17 +7,24 @@
 
 #include "NvInfer.h"
 
+#include "common/logger.h"
+#include "common/timer.h"
+
 using namespace std;
 
 DEFINE_string(trt_file, "", "Path to TensorRT engine file");
+DEFINE_bool(verbose, false, "Enable verbose logging");
 
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     // Load the TensorRT engine from file
+    LOG_INFO("Loading TensorRT engine from file: " << FLAGS_trt_file);
     std::ifstream trt_file(FLAGS_trt_file, std::ios::binary);
-    if (!trt_file.is_open()) {
+    if (!trt_file.is_open())
+    {
         std::cerr << "Failed to open file: " << FLAGS_trt_file << std::endl;
         return 1;
     }
@@ -31,17 +38,19 @@ int main(int argc, char** argv) {
     trt_file.close();
 
     // Deserialize the engine
-    nvinfer1::ILogger& gLogger = nvinfer1::Logger(nvinfer1::Logger::Severity::kINFO);
-    nvinfer1::IRuntime* runtime = nvinfer1::createInferRuntime(gLogger);
-    nvinfer1::ICudaEngine* engine = runtime->deserializeCudaEngine(trt_data.get(), size);
-    if (!engine) {
+    Logger logger(FLAGS_verbose ? nvinfer1::ILogger::Severity::kVERBOSE : nvinfer1::ILogger::Severity::kWARNING);
+    nvinfer1::IRuntime *runtime = nvinfer1::createInferRuntime(logger);
+    nvinfer1::ICudaEngine *engine = runtime->deserializeCudaEngine(trt_data.get(), size);
+    if (!engine)
+    {
         std::cerr << "Failed to deserialize engine" << std::endl;
         return 1;
     }
+    LOG_INFO("Engine deserialized successfully");
 
     // Clean up
-    engine->destroy();
-    runtime->destroy();
+    delete engine;
+    delete runtime;
 
     return 0;
 }
