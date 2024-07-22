@@ -7,8 +7,12 @@
 
 #include "NvInfer.h"
 
+#include "cuda_runtime_api.h"
+
 #include "common/logger.h"
 #include "common/timer.h"
+#include "data_loader.h"
+#include "preprocess.h"
 
 using namespace std;
 
@@ -47,6 +51,34 @@ int main(int argc, char **argv)
         return 1;
     }
     LOG_INFO("Engine deserialized successfully");
+
+    // dummy data
+    const int src_width = 640;
+    const int src_height = 480;
+    const int dst_width = 64;
+    const int dst_height = 64;
+    const int channel = 3;
+
+    Buffer input_buffer(src_width * src_height * channel * sizeof(uint8_t));
+    Buffer preprocessed_buffer(dst_width * dst_height * channel * sizeof(float));
+
+    input_buffer.fill_random_int();
+
+    cudaStream_t stream;
+    CUDA_CHECK(cudaStreamCreate(&stream));
+
+    input_buffer.copy_to_device(stream);
+
+    cudaStreamSynchronize(stream);
+
+    // Preprocess the input data
+    {
+        TimerScope timer_scope("Preprocess");
+        preprocess(
+            reinterpret_cast<uint8_t *>(input_buffer.device_data()),
+            reinterpret_cast<float *>(preprocessed_buffer.device_data()),
+            src_width, src_height, dst_width, dst_height, channel);    
+    }
 
     // Clean up
     delete engine;
