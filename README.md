@@ -42,3 +42,8 @@ sudo apt install nvidia-jetpack
 - CNNRNNLN
 - **Experimental** CAEBN (no RNN)
   - Do not work with Int8 TensorRT inference
+
+## License
+- Files from original eipl repository are licensed under the AGPL License.
+- Files from NVIDIA are licensed under the Apache License 2.0.
+- Others are licensed under the AGPL License.
