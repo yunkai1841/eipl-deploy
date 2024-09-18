@@ -16,6 +16,8 @@ class SARNNTRT:
         self.input_names = {name: i for i, name in enumerate(input_names)}
         self.output_names = {name: i for i, name in enumerate(output_names)}
         self.print_time = print_time
+        self.state_h = np.zeros(50, order="C").astype(np.float32)
+        self.state_c = np.zeros(50, order="C").astype(np.float32)
 
     def load_engine(self, engine_path):
         with open(engine_path, "rb") as f, trt.Runtime(
@@ -23,13 +25,13 @@ class SARNNTRT:
         ) as runtime:
             return runtime.deserialize_cuda_engine(f.read())
 
-    def __call__(self, img, joint, state_h, state_c):
+    def __call__(self, img, joint):
         self.inputs[self.input_names["i.image"]].host = img
         self.inputs[self.input_names["i.joint"]].host = joint
 
         # TODO(performance): keep rnn state in device memory
-        self.inputs[self.input_names["i.state_h"]].host = state_h
-        self.inputs[self.input_names["i.state_c"]].host = state_c
+        self.inputs[self.input_names["i.state_h"]].host = self.state_h
+        self.inputs[self.input_names["i.state_c"]].host = self.state_c
 
         # TODO(performance): separate inference and memory transfer
         t1 = time.perf_counter()
@@ -40,11 +42,12 @@ class SARNNTRT:
         if self.print_time:
             print("[TRT] Memory transfer + Inference time: {} (ms)", (t2 - t1) * 1000)
 
+        self.state_h = result[self.output_names["o.state_h"]]
+        self.state_c = result[self.output_names["o.state_c"]]
+
         return {
             result[self.output_names["o.image"]],
             result[self.output_names["o.joint"]],
             result[self.output_names["o.enc_pts"]],
             result[self.output_names["o.dec_pts"]],
-            result[self.output_names["o.state_h"]],
-            result[self.output_names["o.state_c"]],
         }

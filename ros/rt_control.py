@@ -20,6 +20,8 @@ from eipl.utils import restore_args
 from eipl.utils import resize_img, normalization, tensor2numpy, deprocess_img
 from eipl.model import SARNN
 
+from trt_model import SARNNTRT
+
 joint_arr = None
 img_arr = None
 
@@ -62,19 +64,22 @@ def main(freq, exp_time, motor_list, model_path, input_param):
     # print("initial", initial_joint)
 
 
-    model = SARNN(
-        rec_dim=params["rec_dim"],
-        joint_dim=5,
-        k_dim=params["k_dim"],
-        heatmap_size=params["heatmap_size"],
-        temperature=params["temperature"],
-        im_size=[64,64]
-    )
+    # model = SARNN(
+    #     rec_dim=params["rec_dim"],
+    #     joint_dim=5,
+    #     k_dim=params["k_dim"],
+    #     heatmap_size=params["heatmap_size"],
+    #     temperature=params["temperature"],
+    #     im_size=[64,64]
+    # )
+    # engine_path = model_path.replace(".pth", ".engine")
+    engine_path = "~/Documents/eipl-deploy/models/sarnn-om/sarnn.engine"
+    model_trt = SARNNTRT(engine_path=engine_path)
     
-    ckpt = torch.load(model_path, map_location=torch.device("cpu"))
-    model.load_state_dict(ckpt["model_state_dict"])
-    model = model.cuda()
-    model.eval()
+    # ckpt = torch.load(model_path, map_location=torch.device("cpu"))
+    # model.load_state_dict(ckpt["model_state_dict"])
+    # model = model.cuda()
+    # model.eval()
     
     state = None
     y_img, y_joint = 0.0, 0.0
@@ -100,41 +105,44 @@ def main(freq, exp_time, motor_list, model_path, input_param):
         if (img_arr is not None) and (joint_arr is not None):
 
             rt_img = img_arr
-            t_img = torch.Tensor(np.expand_dims(rt_img, 0))
+            # t_img = np.expand_dims(rt_img, 0)
             t_img = normalization(t_img, (0,255), minmax )
             t_img = np.transpose(t_img, (0,3,1,2))
-            t_img = torch.Tensor(t_img).cuda()
+            # t_img = torch.Tensor(t_img).cuda()
             # normalize joint
             t_joint = np.array(joint_arr, dtype=np.float32)
-            t_joint = torch.Tensor(np.expand_dims(t_joint, 0))
+            # t_joint = np.expand_dims(t_joint, 0)
             t_joint = normalization(t_joint, joint_bounds, minmax)
-            t_joint = torch.Tensor(t_joint).cuda()
+            # t_joint = torch.Tensor(t_joint).cuda()
 
             # predict image and joint
-            with torch.inference_mode():
-                y_img, y_joint, ect_pts, dec_pts, state = model(t_img, t_joint, state)
+            # with torch.inference_mode():
+            #     y_img, y_joint, ect_pts, dec_pts, state = model(t_img, t_joint, state)
+
+            y_img, y_joint, ect_pts, dec_pts = model_trt(t_img, t_joint)
             # print(y_joint)
             rospy.loginfo("next")
 
             # denormalization
-            pred_image = tensor2numpy(y_img[0])
-            pred_image = deprocess_img(pred_image, params["vmin"], params["vmax"])
+            # pred_image = tensor2numpy(y_img[0])
+            pred_image = deprocess_img(y_img, params["vmin"], params["vmax"])
             pred_image = pred_image.transpose(1, 2, 0)
-            pred_joint = tensor2numpy(y_joint[0])
-            pred_joint = normalization(pred_joint, minmax, joint_bounds)
+            # pred_joint = tensor2numpy(y_joint[0])
+            pred_joint = normalization(y_joint, minmax, joint_bounds)
             
             # set message
             joint_msg.header.stamp = rospy.Time.now()
             joint_msg.position = pred_joint
             # rospy.loginfo(str(pred_joint))
             rospy.loginfo(str(joint_arr))
+
+            # ? ignore the first several loops
             if loop_cnt > 10:
                 joint_pub.publish(joint_msg)
-            
 
             # converting the position of attention points
-            ect_pts = tensor2numpy(ect_pts)
-            dec_pts = tensor2numpy(dec_pts)
+            # ect_pts = tensor2numpy(ect_pts)
+            # dec_pts = tensor2numpy(dec_pts)
             ect_pts = ect_pts.reshape(params["k_dim"], 2) * img_size
             dec_pts = dec_pts.reshape(params["k_dim"], 2) * img_size
             ect_pts = np.clip(ect_pts, 0, img_size).astype(np.int8)
@@ -142,9 +150,7 @@ def main(freq, exp_time, motor_list, model_path, input_param):
             
             # plot attention points on the predicted image
             rt_img = rt_img[:,:,::-1].copy()
-            cv2.imwrite("./fig/org_img.png", rt_img)
             pred_image = pred_image[:,:,::-1].copy()
-            cv2.imwrite("./fig/pred_img.png", pred_image)
             for i in range(params["k_dim"]):
                 cv2.circle(pred_image, tuple(ect_pts[i]), 1, (0,0,255), thickness=-1)
                 cv2.circle(pred_image, tuple(dec_pts[i]), 1, (255,255,255), thickness=-1)
