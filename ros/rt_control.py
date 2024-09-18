@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Copyright (c) Since 2023 Ogata Laboratory, Waseda University
 Released under the AGPL license.
@@ -35,7 +36,7 @@ def cameraCallBack(msg):
     np_img = np.frombuffer(msg.data, np.uint8)
     np_img = np_img.reshape((msg.height, msg.width, 3))
     # np_img = np_img[:-120,400:1000]
-    img_arr = cv2.resize(np_img, (64, 64))
+    img_arr = np.array(cv2.resize(np_img, (64, 64)))
 
 def main(freq, exp_time, motor_list, model_path, input_param):
     rospy.loginfo_once(model_path)
@@ -73,7 +74,7 @@ def main(freq, exp_time, motor_list, model_path, input_param):
     #     im_size=[64,64]
     # )
     # engine_path = model_path.replace(".pth", ".engine")
-    engine_path = "~/Documents/eipl-deploy/models/sarnn-om/sarnn.engine"
+    engine_path = "/home/zhu/Documents/eipl-deploy/models/sarnn-om/sarnn.engine"
     model_trt = SARNNTRT(engine_path=engine_path)
     
     # ckpt = torch.load(model_path, map_location=torch.device("cpu"))
@@ -106,8 +107,8 @@ def main(freq, exp_time, motor_list, model_path, input_param):
 
             rt_img = img_arr
             # t_img = np.expand_dims(rt_img, 0)
-            t_img = normalization(t_img, (0,255), minmax )
-            t_img = np.transpose(t_img, (0,3,1,2))
+            t_img = normalization(rt_img, (0,255), minmax )
+            t_img = np.transpose(t_img.astype(np.float32), (2, 0, 1))
             # t_img = torch.Tensor(t_img).cuda()
             # normalize joint
             t_joint = np.array(joint_arr, dtype=np.float32)
@@ -126,6 +127,7 @@ def main(freq, exp_time, motor_list, model_path, input_param):
             # denormalization
             # pred_image = tensor2numpy(y_img[0])
             pred_image = deprocess_img(y_img, params["vmin"], params["vmax"])
+            pred_image = pred_image.reshape([3, 64, 64])
             pred_image = pred_image.transpose(1, 2, 0)
             # pred_joint = tensor2numpy(y_joint[0])
             pred_joint = normalization(y_joint, minmax, joint_bounds)
@@ -147,7 +149,7 @@ def main(freq, exp_time, motor_list, model_path, input_param):
             dec_pts = dec_pts.reshape(params["k_dim"], 2) * img_size
             ect_pts = np.clip(ect_pts, 0, img_size).astype(np.int8)
             dec_pts = np.clip(dec_pts, 0, img_size).astype(np.int8)
-            
+
             # plot attention points on the predicted image
             rt_img = rt_img[:,:,::-1].copy()
             pred_image = pred_image[:,:,::-1].copy()
@@ -193,3 +195,4 @@ if __name__ == '__main__':
         main(freq, exp_time, motor_list, model_path, input_param)
     except rospy.ROSInterruptException:
         pass
+
